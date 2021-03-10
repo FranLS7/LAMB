@@ -1,0 +1,10 @@
+*/obj
+*/bin
+*/__pycache__
+
+
+# results
+*.csv
+
+# macOS files
+.DS_Store
