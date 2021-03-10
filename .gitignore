@@ -1,5 +1,5 @@
-*/obj
-*/bin
+# */obj
+# */bin
 */__pycache__
 
 
@@ -8,3 +8,9 @@
 
 # macOS files
 .DS_Store
+
+# Executables
+*.x
+
+# Objects
+*.o
