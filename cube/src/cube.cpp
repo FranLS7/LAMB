@@ -95,9 +95,9 @@ namespace lamb{
       axes[i]->points = (int*)malloc(axes[i]->npoints * sizeof(int));
 
       compute_points (axes[i]->min_size, axes[i]->max_size, axes[i]->npoints, axes[i]->points);
-      for (int kk = 0; kk < axes[i]->npoints; kk++){
-        printf("Value [%d, %d]: %d\n", i, kk, axes[i]->points[kk]);
-      }
+      // for (int kk = 0; kk < axes[i]->npoints; kk++){
+      //   printf("Value [%d, %d]: %d\n", i, kk, axes[i]->points[kk]);
+      // }
       total_points *= axes[i]->npoints;
     }
 
@@ -131,6 +131,17 @@ namespace lamb{
     cout << "DUDE, THE CUBE HAS BEEN CREATED PROPERLY!" << endl;
     return true;
   }
+
+  void GEMM_Cube::print_info (){
+    printf("· Total number of points: %d\n", total_points);
+    for (int i = 0; i < 3; i++){
+      printf(">> Axis %d:\n", i + 1);
+      printf("\tmin_size: %d\n", axes[i]->min_size);
+      printf("\tmax_size: %d\n", axes[i]->max_size);
+      printf("\tnpoints: %d\n", axes[i]->npoints);
+    }
+  }
+
 
 
   // Creating this list of points would be useful when the sampling is not uniform
@@ -220,17 +231,14 @@ namespace lamb{
     for (int i = 0; i < 3; i++){
       if (dims_o[i] > axes[i]->max_size) dims_o[i] = axes[i]->max_size;
       else if (dims_o[i] < axes[i]->min_size) dims_o[i] = axes[i]->min_size;
-      // printf ("\t >> dims[%d] == %d\n", i, dims[i]);
+      printf ("\t >> dims[%d] == %d\n", i, dims_o[i]);
     }
-
-
     if (is_in_cube (dims_o, indices)){
       return access_cube(indices);
     }
 
     // Check how many dimensions we have to interpolate AND EXTRACT THE RANGES
     get_ranges (dims_o, indices, ranges);
-
 
     return trilinear_inter(dims_o, ranges);
   }

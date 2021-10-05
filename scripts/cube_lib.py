@@ -12,7 +12,7 @@ def initialise_library(nthreads=1):
     # if nthreads == 1:
     #     lib = 'GC_lib'
     # else:
-    lib = '../cube/lib/GC_lib_mt'
+    lib = 'GC_lib_mt'
     try:
         if platform.system() == 'Darwin':
             library = ctypes.CDLL(lib + '.dylib')
@@ -20,7 +20,8 @@ def initialise_library(nthreads=1):
             library = ctypes.CDLL(lib + '.dll')
         elif platform.system() == 'Linux':
             os.environ["KMP_AFFINITY"] = "verbose,granularity=fine,proclist=[0-9],explicit"
-            dir_path = os.path.dirname(os.path.realpath(__file__))
+            dir_path = os.path.dirname(os.path.realpath(__file__)) + '/../cube/lib'
+            print(dir_path)
             library = ctl.load_library(lib + '.so', dir_path + '/' + lib + '.so')
             # library = ctypes.CDLL(lib + '.so')#,'/home/bsc18/bsc18266/Correlation_in_CUDA/correlation_multicuda.so')
             # library = ctypes.CDLL('correlation_c.so')
