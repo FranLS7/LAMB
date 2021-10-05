@@ -5,6 +5,7 @@
 
 # results
 *.csv
+*.pdf
 
 # macOS files
 .DS_Store

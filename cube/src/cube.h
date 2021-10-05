@@ -25,8 +25,11 @@ namespace lamb{
       // overhead : number of characters to be discarded in the file's headers.
       bool load_cube (std::string filename, const int overhead);
 
-      // Function that returns a certain value from the eff cube
+      // Function that returns a certain value from the cube.
       double get_value (const int d1, const int d2, const int d3) const;
+
+      // Function that shows the cube's information on screen.
+      void print_info ();
 
       // double get_data (const int i) const;
 

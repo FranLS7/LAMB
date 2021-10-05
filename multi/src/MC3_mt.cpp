@@ -6,7 +6,7 @@
 #include <time.h>
 #include <chrono>
 #include <string>
-#include <omp.h>
+#include "mkl.h"
 
 #include <cube.h>
 #include <common.h>
@@ -31,14 +31,14 @@ int main (int argc, char **argv){
   int max_size, jump_size, iterations, nthreads;
   double *times;
 
-  int threshold = 200;
+  int threshold = 500;
   double lo_margin = 0.20;
   double up_margin = 0.40;
 
   int overhead = 2;
   string cube_filename = "../timings/";
-  string out_file0 = "../timings/";
-  string out_file1 = "../timings/";
+  string out_file0 = "../timings/MC3_mt/";
+  string out_file1 = "../timings/MC3_mt/";
 
   std::ofstream ofile0, ofile1;
 
@@ -86,7 +86,7 @@ int main (int argc, char **argv){
   // ==================================================================
   //   - - - - - - - - - - - Proper computation  - - - - - - - - - - -
   // ==================================================================
-  omp_set_num_threads (nthreads);
+  mkl_set_num_threads (nthreads);
   initialise_BLAS();
   for (dims[0] = jump_size; dims[0] <= max_size; dims[0] += jump_size){
     for (dims[1] = jump_size; dims[1] <= max_size; dims[1] += jump_size){

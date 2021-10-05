@@ -5,11 +5,11 @@ MISC			 := ../cube/src
 
 MKL_INC 	 := -m64 -I${MKLROOT}/include
 INC        := -I$(MISC) $(MKL_INC)
-MKL_LD		 := -L${MKLROOT}/lib -Wl,-rpath,${MKLROOT}/lib -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
+MKL_LD		 := -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 
 CXX 			 := c++
 LINKER     := $(CXX)
-DEFS  		 := -DGEMM_L3_CACHE_SIZE=1800000
+DEFS  		 := -DGEMM_L3_CACHE_SIZE=1940000
 CFLAGS     := -O3 -march=native -Wall -std=c++17 $(INC)
 LDFLAGS    := $(MKL_LD) -lm -ldl -lpthread
 

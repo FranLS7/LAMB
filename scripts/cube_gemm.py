@@ -6,8 +6,8 @@ from matplotlib.widgets import Slider
 from matplotlib import cm
 
 # "./MC3/timings/3D/"
-data_dir = "./MC3_par/timings/"
-data_file = "cube_1500_10th.csv"
+data_dir = "../cube/timings/"
+# data_file = "cube_1500_10th.csv"
 
 CPU_1FREQ = 4.5e9
 CPU_6FREQ = 4e9
@@ -281,13 +281,13 @@ class Cube():
 
 # cubito.save_data(data_dir + 'cube1500_server.csv')
 
-cube = Cube ('../timings/cube_10cores.csv')
+cube = Cube (data_dir + "cube_10c.csv")
 
 cube.form_cube(metric='eff', tpp_1c=(SERVER_AVX512_FREQ[9] * SERVER_DP))
 cube.plot_diagonal()
 cube.plot_slice(0,21)
 
-# cube.save_data('../timings/10cores_proc.csv')
+# cube.save_data(data_dir + "cube_10c_proc.csv")
 
 
 
