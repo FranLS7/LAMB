@@ -6,7 +6,7 @@
 #include <time.h>
 #include <chrono>
 #include <string>
-#include <mkl.h>
+#include "mkl.h"
 
 #include <common.h>
 

@@ -214,7 +214,7 @@ double median_array (double arr[], int size);
 
 template<typename T> T median_vector (const std::vector<T>& v){
   std::vector<T> aux = v;
-  int n = aux.size()
+  int n = aux.size();
   if (n % 2 != 0){
     std::nth_element (aux.begin(), aux.begin() + n / 2, aux.end());
     return aux[n / 2];
