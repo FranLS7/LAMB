@@ -11,7 +11,7 @@
 
 #include "mkl.h"
 
-#include "cube.h"
+#include "cube_old.h"
 #include "common.h"
 
 void print_menu ();
