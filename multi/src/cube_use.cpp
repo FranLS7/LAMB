@@ -1,37 +1,37 @@
 #include <float.h>
-#include <iostream>
+#include <stdlib.h>
+
+#include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
-#include <stdlib.h>
-#include <time.h>
-#include <chrono>
-#include <string>
+#include <iostream>
 #include <random>
-#include <algorithm>
+#include <string>
+
 #include "mkl.h"
 
-#include <cube.h>
-#include <common.h>
+#include "cube.h"
+#include "common.h"
 
 void print_menu ();
 
-using namespace std;
-
 int main (int argc, char **argv){
-  string filename = "";
+  std::string filename = "";
   int overhead = 2;
   int d1, d2, d3;
   int option;
+  std::string a;
 
-  lamb::GEMM_Cube cube;
+  cube::GEMM_Cube cube;
 
   do{
     print_menu();
-    cin >> option;
+    std::cin >> option;
 
     if (option == 1){
-      cout << "Enter name for cube filename: ";
-      cin >> filename;
+      std::cout << "Enter name for cube filename: ";
+      std::cin >> filename;
     }
 
     else if (option == 2){
@@ -43,20 +43,20 @@ int main (int argc, char **argv){
     }
 
     else if (option == 4){
-      cout << "Insert 3 dimensions to consult: \n";
-      cout << "d1: "; cin >> d1;
-      cout << "d2: "; cin >> d2;
-      cout << "d3: "; cin >> d3;
+      std::cout << "Insert 3 dimensions to consult: \n";
+      std::cout << "d1: "; std::cin >> d1;
+      std::cout << "d2: "; std::cin >> d2;
+      std::cout << "d3: "; std::cin >> d3;
       // cube.load_cube (filename, overhead);
       printf("Value: %5.15f\n\n", cube.get_value (d1, d2, d3));
     }
     else
-      cout << "Not a valid option, try again!" << endl;
+      std::cout << "Not a valid option, try again!" << std::endl;
 
 
   }
   while (option != 0);
-  // cout << "Ojo que salimos!" << endl;
+  // std::cout << "Ojo que salimos!" << endl;
 
   return 0;
 }
@@ -65,14 +65,14 @@ int main (int argc, char **argv){
 
 
 void print_menu (){
-  cout << "==================================" << endl;
-  cout << ">> Options:" << endl;
-  cout << "|\t1. Specify cube_filename." << endl;
-  cout << "|\t2. Load the cube." << endl;
-  cout << "|\t3. Print cube information." << endl;
-  cout << "|\t4. Consult one value." << endl;
-  cout << "|\t0. Exit" << endl << endl;
-  cout << "==================================" << endl;
-  cout << "Option: ";
+  std::cout << "==================================" << std::endl;
+  std::cout << ">> Options:" << std::endl;
+  std::cout << "|\t1. Specify cube_filename." << std::endl;
+  std::cout << "|\t2. Load the cube." << std::endl;
+  std::cout << "|\t3. Print cube information." << std::endl;
+  std::cout << "|\t4. Consult one value." << std::endl;
+  std::cout << "|\t0. Exit" << std::endl << std::endl;
+  std::cout << "==================================" << std::endl;
+  std::cout << "Option: ";
 
 }

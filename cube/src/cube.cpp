@@ -1,256 +1,166 @@
-#include <float.h>
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <string>
-#include <math.h>
-
 #include "cube.h"
 
-using namespace std;
-using namespace lamb;
+#include <algorithm>
+#include <string>
+#include <vector>
 
+#include "common.h"
+#include "MCX.h"
 
-namespace {
-  // Function that returns the index of a value in a certain array.
-  // The returned index will be within the range {l, r}, unless the value
-  // we are looking for is not present in the array. In such case, the
-  // returned value will be -1.
-  int binarySearch (int* arr, int l, int r, int value){
-    if (r >= l){
-      int mid = l + int((r - l) / 2);
-
-      if (arr[mid] == value)
-        return mid;
-
-      if (arr[mid] > value)
-        return binarySearch (arr, l, mid - 1, value);
-
-      return binarySearch (arr, mid + 1, r, value);
-    }
-
-    return -1;
+namespace cube{
+  Cube::~Cube(){
+    if (data)
+      delete[] data;
   }
 
-  // Function that returns the index of the greatest number that is less than
-  // the passed value
-  int searchLower (int* arr, int length, int value){
-    int idx = 0;
-    for (idx = 0; idx < length - 1; idx++){
-      if (arr[idx + 1] > value) break;
-    }
-    return idx;
+  Cube::Cube(const iVector2D& axes, const int n_threads){
+    this-> axes = axes;
+    this->n_threads = n_threads;
+
+    n_elements = 1;
+    for (const auto& axis : axes)
+      n_elements *= static_cast<int>(axis.size());
   }
 
-  // Compute points in the form of a parabola: y = ax2 + bx + c
-  // This parabola has its vertex in x=0 --> 'b' = 0.
-  // For the same reason --> 'c' = min_size.
-  // 'a' is left to compute, then.
-  void compute_points (int min_size, int max_size, int npoints, int *points){
-    double a = (max_size - min_size) / pow(npoints - 1, 2.0);
-
-    for (int i = 0; i < npoints; i++){
-      points[i] = int(a * pow(i, 2.0)) + min_size;
-      if (i > 0 && points[i] <= points[i - 1])
-        points[i] = points[i-1] + 1;
-      // printf("points[%d] : %d\n", i, points[i]);
-    }
-  }
-}
-
-
-namespace lamb{
-  GEMM_Cube::GEMM_Cube () {}
-
-  GEMM_Cube::GEMM_Cube (std::string filename, const int overhead){
-    axes[0] = &d0;
-    axes[1] = &d1;
-    axes[2] = &d2;
-
-    if (!load_cube(filename, overhead))
-      cout << "Error loading the cube" << endl;
+  double Cube::operator()(const int d0, const int d1, const int d2) const {
+    iVector1D dims {d0, d1, d2};
+    return this->operator()(dims);
   }
 
+  double Cube::operator()(const iVector1D& _dims) const {
+    if (!data)
+      return -1.0;
 
-  bool GEMM_Cube::load_cube (std::string filename, const int overhead){
-    std::ifstream ifile;
-    ifile.open (filename, std::ios::in);
-    total_points=1;
+    iVector1D dims = _dims;
+    iVector1D indices {-1, -1, -1};
 
-    if (ifile.fail()){
-      cout << "Error opening the gemm_cube file" << endl;
-      return false;
+    clipDims(dims);
+    // in_cube = isInCube(dims);
+
+    if (isInCube(dims, indices))
+      return fetchValue(indices);
+
+    // TODO: change ranges to 2D vector of ints.
+    std::vector<std::pair<int,int>> ranges = getRanges(dims, indices);
+
+    iVector2D coords;
+    for (unsigned i = 0; i < ranges.size(); ++i) {
+      coords[i].push_back(axes[i][ranges[i].first]);
+      coords[i].push_back(axes[i][ranges[i].second]);
     }
-
-    string s;
-
-    // Load headers - cube information
-    for (int i = 0; i < 3; i++){
-      getline (ifile, s);
-      axes[i]->min_size = stoi (s.substr (overhead, s.length() - overhead));
-      getline (ifile, s);
-      axes[i]->max_size = stoi (s.substr (overhead, s.length() - overhead));
-      getline (ifile, s);
-      axes[i]->npoints = stoi (s.substr (overhead, s.length() - overhead));
-      axes[i]->points = (int*)malloc(axes[i]->npoints * sizeof(int));
-
-      compute_points (axes[i]->min_size, axes[i]->max_size, axes[i]->npoints, axes[i]->points);
-      // for (int kk = 0; kk < axes[i]->npoints; kk++){
-      //   printf("Value [%d, %d]: %d\n", i, kk, axes[i]->points[kk]);
-      // }
-      total_points *= axes[i]->npoints;
-    }
-
-
-    // getline (ifile, s);
-    // d1.min_size = stoi (s.substr (overhead, s.length() - overhead));
-    // getline (ifile, s);
-    // d1.max_size = stoi (s.substr (overhead, s.length() - overhead));
-    // getline (ifile, s);
-    // d1.npoints = stoi (s.substr (overhead, s.length() - overhead));
-    //
-    // getline (ifile, s);
-    // d2.min_size = stoi (s.substr (overhead, s.length() - overhead));
-    // getline (ifile, s);
-    // d2.max_size = stoi (s.substr (overhead, s.length() - overhead));
-    // getline (ifile, s);
-    // d2.npoints = stoi (s.substr (overhead, s.length() - overhead));
-
-    // getline (ifile, s);
-    // jump_size = stoi (s.substr (overhead, s.length() - overhead));
-
-    // Initialise the linearised cube
-    data = (double*)malloc(total_points * sizeof(double));
-
-    for (int i = 0; i < total_points; i++){
-      getline (ifile, s);
-      data[i] = stod (s);
-    }
-
-    ifile.close();
-    cout << "DUDE, THE CUBE HAS BEEN CREATED PROPERLY!" << endl;
-    return true;
-  }
-
-  void GEMM_Cube::print_info (){
-    printf("· Total number of points: %d\n", total_points);
-    for (int i = 0; i < 3; i++){
-      printf(">> Axis %d:\n", i + 1);
-      printf("\tmin_size: %d\n", axes[i]->min_size);
-      printf("\tmax_size: %d\n", axes[i]->max_size);
-      printf("\tnpoints: %d\n", axes[i]->npoints);
-    }
-  }
-
-
-
-  // Creating this list of points would be useful when the sampling is not uniform
-  // void GEMM_Cube::create_points (){
-  //   points = (int*)malloc(npoints * sizeof(int));
-  //   for (int i = 0; i < npoints; i++){
-  //     points[i] = min_size + i * jump_size;
-  //   }
-  // }
-
-
-  bool GEMM_Cube::is_in_cube (const int* dims_o, int* indices) const{
-    bool is = true;
-
-    for (int i = 0; i < 3; i++){
-      indices[i] = binarySearch (axes[i]->points, 0, axes[i]->npoints, dims_o[i]);
-      if (indices[i] == -1){
-        is = false;
-      }
-    }
-
-    return is;
-  }
-
-
-  inline double GEMM_Cube::access_cube (const int *indices) const {
-    return data[indices[0] * axes[1]->npoints * axes[2]->npoints +
-      indices[1] * axes[2]->npoints + indices[2]];
-  }
-
-
-  void GEMM_Cube::get_ranges (const int *dims_o, const int *indices, int *ranges) const{
-    for (int i = 0; i < 3; i++){
-      if (indices[i] != -1){
-        ranges[2 * i] = indices[i];
-        ranges[2 * i + 1] = indices[i];
-      }
-      else{
-        ranges[2 * i] = searchLower(axes[i]->points, axes[i]->npoints, dims_o[i]);
-        ranges[2 * i + 1] = ranges[2 * i] + 1;
-      }
-    }
-  }
-
-
-  // Trilinear interpolation with uniform sampling
-  double GEMM_Cube::trilinear_inter (const int* dims_o, const int* ranges) const{
-    float r_distances[3];
-    double values_lattice[8];
-    for (int i = 0; i < 3; i++){
-      if (ranges[2 * i] == ranges[2 * i + 1])
-        r_distances[i] = 0.0f;
-      else
-        r_distances[i] = double(dims_o[i] - axes[i]->points[ranges[2 * i]]) /
-          double(axes[i]->points[ranges[2 * i + 1]] - axes[i]->points[ranges[2 * i]]);
-    }
-
-    for (int i = 0; i < 2; i++){
-      for (int j = 0; j < 2; j++){
-        for (int k = 0; k < 2; k++){
-          int indices[3] = {ranges[i], ranges[2 + j], ranges[4 + k]};
-          values_lattice[i * 4 + j * 2 + k] = access_cube(indices);
+    ranges[0][0];
+    dVector3D lattice;
+    for (unsigned m = 0; m < ranges[0].size(); ++m) {
+      for (auto &k : ranges[1]) {
+        for (auto &n : ranges[2]) {
+          lattice
         }
       }
     }
 
-    double c00 = values_lattice[0] * (1.0f - r_distances[0]) + values_lattice[4] * r_distances[0];
-    double c01 = values_lattice[1] * (1.0f - r_distances[0]) + values_lattice[5] * r_distances[0];
-    double c10 = values_lattice[2] * (1.0f - r_distances[0]) + values_lattice[6] * r_distances[0];
-    double c11 = values_lattice[3] * (1.0f - r_distances[0]) + values_lattice[7] * r_distances[0];
+    return triInterpolation(dims, ranges);
 
-    double c0 = c00 * (1.0f - r_distances[1]) + c10 * r_distances[1];
-    double c1 = c01 * (1.0f - r_distances[1]) + c11 * r_distances[1];
+    // for (unsigned i = 0; i < in_cube.size(); ++i) {
+    //   if (!in_cube[i])
+    // }
 
-    return (c0 * (1.0f - r_distances[2]) + c1 * r_distances[2]);
+
+
+    
+
+
+
+  }
+
+  void Cube::generate() {
+    this->data = new double[n_elements];
+    iVector1D gemm_dims {1, 1, 1};
+    mcx::MCX chain(gemm_dims);
+    dVector2D times;
+
+    int m_points = static_cast<int>(axes[0].size());
+    int k_points = static_cast<int>(axes[1].size());
+    int n_points = static_cast<int>(axes[2].size());
+
+    for (int m = 0; m < m_points; ++m) {
+      for (int k = 0; k < k_points; ++k) {
+        for (int n = 0; n < n_points; ++n) {
+          gemm_dims = {axes[0][m], axes[1][k], axes[2][n]};
+          chain.setDims(gemm_dims);
+          times = chain.executeAll(BENCH_REPS, n_threads);
+          data[m * k_points * n_points + k * n_points + n] = lamb::medianVector(times[0]);
+        }
+      }
+    }
+  }
+
+  iVector1D Cube::clipDims(iVector1D& dims) const {
+    for (unsigned i = 0; i < axes.size(); ++i) {
+      if (dims[i] < axes[i].front())
+        dims[i] = axes[i].front();
+      else if (dims[i] > axes[i].back())
+        dims[i] = axes[i].back();
+    }
+    return dims;
+  }
+
+  bool Cube::isInCube(const iVector1D& dims, iVector1D& indices) const {
+    bool found = true;
+
+    for (unsigned i = 0; i < dims.size(); ++i) {
+      auto it = std::find(axes[i].begin(), axes[i].end(), dims[i]);
+      if (it == axes[i].end()) {
+        found = false;
+        indices[i] = -1;
+      }
+      else {
+        indices[i] = it - axes[i].begin();
+      }
+    }
+    return found;
+  }
+
+  double Cube::fetchValue(const iVector1D& indices) const {
+    return data[indices[0] * axes[1].size() * axes[2].size() +
+                indices[1] * axes[2].size() +
+                indices[2]];
+  }
+
+  std::vector<std::pair<int,int>> Cube::getRanges(const iVector1D& dims, 
+      iVector1D& indices) const {
+    
+    std::vector<std::pair<int,int>> ranges(indices.size());
+
+    for (unsigned i = 0; i < indices.size(); ++i) {
+      if (indices[i] != -1) 
+        ranges[i] = {indices[i], indices[i]}; // if this dimension is in the cube
+          // assign the ranges to be exactly the same value -> no interpolation is needed
+          // in this dimension.s
+      
+      else {
+        ranges[i].first = searchLower(axes[i], dims[i]);
+        ranges[i].second = ranges[i].first + 1;
+      }
+    }
+    return ranges;
+  }
+
+  int Cube::searchLower (const iVector1D& v, const int value) const {
+    int idx = 0;
+    for (idx = 0; idx < static_cast<int>(v.size()) - 1; idx++)
+      if (v[idx + 1] > value) break;
+    return idx;
+  }
+
+  double Cube::triInterpolation(const iVector1D& dims,
+   const std::vector<std::pair<int,int>>& ranges) const {
+     dVector1D temporary;
+     temporary.push_back(biInterpolation());
+  }
+
+  double Cube::linInterpolation(const int dim, ) const {
+
   }
 
 
-  // Function that returns a certain value from the eff cube
-  double GEMM_Cube::get_value (const int d1, const int d2, const int d3) const{
-    int dims_o[3] = {d1, d2, d3};
-    int indices[3] = {-1, -1, -1};
-    int ranges[6];
-
-    // Check whether values are out of range; this truncation might be revised
-    // in the future.
-    for (int i = 0; i < 3; i++){
-      if (dims_o[i] > axes[i]->max_size) dims_o[i] = axes[i]->max_size;
-      else if (dims_o[i] < axes[i]->min_size) dims_o[i] = axes[i]->min_size;
-      printf ("\t >> dims[%d] == %d\n", i, dims_o[i]);
-    }
-    if (is_in_cube (dims_o, indices)){
-      return access_cube(indices);
-    }
-
-    // Check how many dimensions we have to interpolate AND EXTRACT THE RANGES
-    get_ranges (dims_o, indices, ranges);
-
-    return trilinear_inter(dims_o, ranges);
-  }
-
-  // double GEMM_Cube::get_data (const int i) const{
-  //   return data[i];
-  // }
-
-  // int GEMM_Cube::get_axis_value (const int ax, const int i) const{
-  //   return axes[ax]->points[i];
-  // }
 }
-
-
-

@@ -1,34 +1,32 @@
 #include <float.h>
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <time.h>
+
 #include <chrono>
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <math.h>
-#include "mkl.h"
 
-#include <common.h>
-#include <omp.h>
+#include <mkl.h>
 
-using namespace std;
+#include "common.h"
+
+// ----------------- CONSTANTS ----------------- //
+const int NDIM = 3;
+const int ALIGN = 64;
+// --------------------------------------------- //
 
 extern "C" int dgemm_(char*, char*, int*, int*, int*, double*, double*, int*,
   double*, int*, double*, double*, int*);
 
-void compute_points (int min_size, int max_size, int npoints, int *points);
-
 int main (int argc, char** argv){
-  int ndim = 3;
-  int dims[ndim];
+  std::vector<int> dims (NDIM, 0);
   std::vector<int> points = {20, 40, 60, 80, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1500, 2000};
   int iterations, max_nthreads;
 
-  string output_file;
+  std::string output_file;
 
   if (argc != 4){
-    cout << "Execution: " << argv[0] << " iterations max_nthreads output_file" << endl;
+    std::cout << "Execution: " << argv[0] << " iterations max_nthreads output_file" << std::endl;
     return (-1);
   }
   else {
@@ -37,62 +35,56 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
-  double* times = (double*)malloc(iterations * sizeof(double));
+  std::vector<double> times (iterations, 0.0f);
   std::ofstream ofiles[max_nthreads];
 
-  // ==================================================================
-  //   - - - - - - - - - - Opening output files - - - - - - - - - - -
-  // ==================================================================
+  // Opening output files.
   for (int i = 0; i < max_nthreads; i++){
-    // cout << output_file + to_string(i) + string(".csv") << endl;
-    ofiles[i].open (output_file + to_string(i+1) + string(".csv"));
+    ofiles[i].open (output_file + std::to_string(i + 1) + std::string(".csv"));
     if (ofiles[i].fail()){
       printf("Error opening the file %d\n", i+1);
       exit(-1);
     }
-    add_headers (ofiles[i], ndim, iterations);
+    lamb::printHeaderTime(ofiles[i], NDIM, iterations);
   }
 
-  auto start = std::chrono::high_resolution_clock::now();
   // ==================================================================
   //   - - - - - - - - - - - Proper computation  - - - - - - - - - - -
   // ==================================================================
   double one = 1.0;
   char transpose = 'N';
   double *A, *B, *C;
-  int alignment = 64;
-  mkl_set_dynamic(0);
-  mkl_set_num_threads(max_nthreads);
-  initialise_BLAS();
+  MKL_Set_Dynamic(0);
+  MKL_Set_Num_Threads(max_nthreads);
 
+  lamb::initialiseBLAS();
 
-  for (int d : points){
-    for (int i = 0; i < ndim; i++)
-      dims[i] = d;
-    printf(" >> Computing [%d, %d, %d]\n", d, d, d);
+  for (int const size : points){
+    for (auto &dim : dims)
+      dim = size;
+    std::cout << " >> Computing " << "[" << size << ", " << size << ", " << size << "]\n";
 
-    A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), alignment);
+    A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), ALIGN);
+    B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+    C = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), ALIGN);
 
     for (int i = 0; i < dims[0] * dims[1]; i++)
       A[i] = drand48 ();
 
-    B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-
     for (int i = 0; i < dims[1] * dims[2]; i++)
       B[i] = drand48 ();
-
-    C = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), alignment);
 
     for (int i = 0; i < dims[0] * dims[2]; i++)
       C[i] = drand48 ();
 
-    for (int nthreads = 1; nthreads <= max_nthreads; nthreads++){
-      cout << "\t ⁄⁄ Computing with " << nthreads << " cores!" << endl;
-      mkl_set_num_threads(nthreads);
+    for (int n_threads = 1; n_threads <= max_nthreads; n_threads++){
+      std::cout << "\t ⁄⁄ Computing with " << n_threads << " cores!" << std::endl;
+      MKL_Set_Num_Threads(n_threads);
+
       for (int it = 0; it < iterations; it++){
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
+        lamb::cacheFlush (n_threads);
+        lamb::cacheFlush (n_threads);
+        lamb::cacheFlush (n_threads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
         dgemm_ (&transpose, &transpose, &dims[0], &dims[2], &dims[1], &one, A,
@@ -101,7 +93,7 @@ int main (int argc, char** argv){
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      add_line (ofiles[nthreads - 1], dims, ndim, times, iterations);
+      lamb::printTime(ofiles[n_threads - 1], dims, times);
     }
 
     mkl_free (A);
@@ -109,32 +101,10 @@ int main (int argc, char** argv){
     mkl_free (C);
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-  printf("The total execution has taken %f seconds\n", std::chrono::duration<double>(end - start).count());
-
-
   for (int i = 0; i < max_nthreads; i++)
     ofiles[i].close();
 
-  free(times);
-
   return 0;
-}
-
-
-// Compute points in the form of a parabola: y = ax2 + bx + c
-// This parabola has its vertex in x=0 --> 'b' = 0.
-// For the same reason --> 'c' = min_size.
-// 'a' is left to compute, then.
-void compute_points (int min_size, int max_size, int npoints, int *points){
-  double a = (max_size - min_size) / pow(npoints - 1, 2.0);
-
-  for (int i = 0; i < npoints; i++){
-    points[i] = int(a * pow(i, 2.0)) + min_size;
-    if (i > 0 && points[i] <= points[i - 1])
-      points[i] = points[i-1] + 1;
-    // printf("points[%d] : %d\n", i, points[i]);
-  }
 }
 
 

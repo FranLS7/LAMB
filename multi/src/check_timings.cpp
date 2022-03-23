@@ -1,45 +1,57 @@
 #include <float.h>
-#include <iostream>
+#include <stdlib.h>
+
+#include <chrono>
 #include <fstream>
 #include <iomanip>
-#include <stdlib.h>
-#include <time.h>
-#include <chrono>
+#include <iostream>
 #include <string>
+#include <vector>
+
 #include "mkl.h"
 
-#include <common.h>
+#include "common.h"
 
-using namespace std;
+// ----------------- CONSTANTS ----------------- //
+const int NPAR = 1;
+const int NDIM = 3;
+
+const int ALIGN = 64;
+// --------------------------------------------- //
+
 
 extern "C" int dgemm_(char*, char*, int*, int*, int*, double*, double*, int*, double*, int*, double*, double*, int*);
 
-void operations_1 (int dims[], double times[], int iterations, int nthreads);
-void operations_2 (int dims[], double times[], int iterations, int nthreads);
-void operations_3 (int dims[], double times[], int iterations, int nthreads);
-void operations_4 (int dims[], double times[], int iterations, int nthreads, int size);
+void operations_1 (std::vector<int>& dims, std::vector<double>& times, 
+const int iterations, const int n_threads);
+
+void operations_2 (std::vector<int>& dims, std::vector<double>& times, 
+const int iterations, const int n_threads);
+
+void operations_3 (std::vector<int>& dims, std::vector<double>& times, 
+const int iterations, const int n_threads);
+
+void operations_4 (std::vector<int>& dims, std::vector<double>& times, 
+const int iterations, const int n_threads, int size);
 
 
-int main (int argc, char **argv){
-
-  int ndim = 3, dims[ndim];
-  int nthreads, iterations;
+int main (int argc, char **argv) {
+  std::vector<int> dims;
+  int n_threads, iterations;
 
   std::ofstream ofile;
-  string output_file;
+  std::string output_file;
 
-  double *times;
-
-  if (argc != 7){
-    printf("Execution: %s d0 d1 d2 iterations nthreads output_file\n", argv[0]);
+  if (argc != 7) {
+    printf("Execution: %s d0 d1 d2 iterations n_threads output_file\n", argv[0]);
     exit(-1);
   }
-  else{
-    for (int i = 0; i < ndim; i++)
-      dims[i] = atoi(argv[i + 1]);
+  else {
+    for (int i = 1; i <= NDIM; i++)
+      dims.push_back(atoi(argv[i]));
 
     iterations = atoi (argv[4]);
-    nthreads = atoi (argv[5]);
+    n_threads = atoi (argv[5]);
     output_file = argv[6];
   }
 
@@ -48,25 +60,26 @@ int main (int argc, char **argv){
     printf("Error opening the output file...\n");
     exit(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, NDIM, iterations);
 
-  times = (double*)malloc(iterations * sizeof(double));
+  std::vector<double> times;
+  times.resize(iterations);
 
   mkl_set_dynamic(false);
-  mkl_set_num_threads(nthreads);
+  mkl_set_num_threads(n_threads);
 
-  initialise_mkl();
+  lamb::initialiseMKL();
   printf("Executing the first set of operations..\n");
-  operations_1 (dims, times, iterations, nthreads);
-  add_line (ofile, dims, ndim, times, iterations);
+  operations_1 (dims, times, iterations, n_threads);
+  lamb::printTime(ofile, dims, times);
 
   printf("Executing the second set of operations..\n");
-  operations_2 (dims, times, iterations, nthreads);
-  add_line (ofile, dims, ndim, times, iterations);
+  operations_2 (dims, times, iterations, n_threads);
+  lamb::printTime(ofile, dims, times);
 
   printf("Executing the third set of operations..\n");
-  operations_3 (dims, times, iterations, nthreads);
-  add_line (ofile, dims, ndim, times, iterations);
+  operations_3 (dims, times, iterations, n_threads);
+  lamb::printTime(ofile, dims, times);
 
   // printf("Executing the fourth set of operations..\n");
   // for (int size = 2000; size >= 100; size -= 100){
@@ -75,7 +88,6 @@ int main (int argc, char **argv){
   //   add_line (ofile, dims, ndim, times, iterations);
   // }
 
-  free(times);
   ofile.close();
 
 
@@ -83,16 +95,16 @@ int main (int argc, char **argv){
 }
 
 
-void operations_1 (int dims[], double times[], int iterations, int nthreads){
+void operations_1 (std::vector<int> &dims, std::vector<double>& times, 
+    const int iterations, const int n_threads) {
   double *A, *B, *X;
   double one = 1.0;
   char transpose = 'N';
-  int alignment = 64;
   int nCF = 3;
 
-  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), alignment);
-  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), alignment);
+  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), ALIGN);
+  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), ALIGN);
 
   for (int i = 0; i < dims[0] * dims[1]; i++)
     A[i] = drand48();
@@ -105,14 +117,15 @@ void operations_1 (int dims[], double times[], int iterations, int nthreads){
 
   for (int it = 0; it < iterations; it++){
     for (int i = 0; i < nCF; i++)
-      cache_flush_par (nthreads);
+      lamb::cacheFlush (n_threads);
 
-    // initialise_BLAS();
     auto time1 = std::chrono::high_resolution_clock::now();
     dgemm_ (&transpose, &transpose, &dims[0], &dims[2], &dims[1], &one, A,
       &dims[0], B, &dims[1], &one, X, &dims[0]);
     auto time2 = std::chrono::high_resolution_clock::now();
+
     times[it] = std::chrono::duration<double>(time2 - time1).count();
+    
     for (int i = 0; i < dims[0] * dims[2]; i++)
       X[i] = drand48();
   }
@@ -125,16 +138,16 @@ void operations_1 (int dims[], double times[], int iterations, int nthreads){
 
 
 
-void operations_2 (int dims[], double times[], int iterations, int nthreads){
+void operations_2 (std::vector<int>& dims, std::vector<double>& times, 
+    const int iterations, const int n_threads) {
   double *A, *B, *X;
   double one = 1.0;
   char transpose = 'N';
-  int alignment = 64;
   int nCF = 3;
 
-  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), alignment);
-  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), alignment);
+  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), ALIGN);
+  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), ALIGN);
 
   for (int i = 0; i < dims[0] * dims[1]; i++)
     A[i] = drand48();
@@ -147,14 +160,17 @@ void operations_2 (int dims[], double times[], int iterations, int nthreads){
 
   for (int it = 0; it < iterations; it++){
     for (int i = 0; i < nCF; i++)
-      cache_flush_par (nthreads);
+      lamb::cacheFlush (n_threads);
 
-    initialise_mkl();
+    lamb::initialiseMKL();
+
     auto time1 = std::chrono::high_resolution_clock::now();
     dgemm_ (&transpose, &transpose, &dims[0], &dims[2], &dims[1], &one, A,
       &dims[0], B, &dims[1], &one, X, &dims[0]);
     auto time2 = std::chrono::high_resolution_clock::now();
+
     times[it] = std::chrono::duration<double>(time2 - time1).count();
+
     for (int i = 0; i < dims[0] * dims[2]; i++)
       X[i] = drand48();
   }
@@ -165,19 +181,18 @@ void operations_2 (int dims[], double times[], int iterations, int nthreads){
 }
 
 
-
-void operations_3 (int dims[], double times[], int iterations, int nthreads){
+void operations_3 (std::vector<int>& dims, std::vector<double>& times, 
+    const int iterations, const int n_threads) {
   double *A, *B, *Y, *M1, *X;
   double one = 1.0;
   char transpose = 'N';
-  int alignment = 64;
   int nCF = 3;
 
-  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), alignment);
-  Y = (double*)mkl_malloc(dims[1] * dims[1] * sizeof(double), alignment);
-  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-  M1 = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), alignment);
+  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), ALIGN);
+  Y = (double*)mkl_malloc(dims[1] * dims[1] * sizeof(double), ALIGN);
+  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+  M1 = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), ALIGN);
 
   for (int i = 0; i < dims[0] * dims[1]; i++)
     A[i] = drand48();
@@ -196,16 +211,19 @@ void operations_3 (int dims[], double times[], int iterations, int nthreads){
 
   for (int it = 0; it < iterations; it++){
     for (int i = 0; i < nCF; i++)
-      cache_flush_par (nthreads);
+      lamb::cacheFlush (n_threads);
 
-    // initialise_BLAS();
+    // initialiseBLAS();
     dgemm_ (&transpose, &transpose, &dims[1], &dims[2], &dims[1], &one, Y,
       &dims[1], B, &dims[1], &one, M1, &dims[1]);
+
     auto time1 = std::chrono::high_resolution_clock::now();
     dgemm_ (&transpose, &transpose, &dims[0], &dims[2], &dims[1], &one, A,
       &dims[0], M1, &dims[1], &one, X, &dims[0]);
     auto time2 = std::chrono::high_resolution_clock::now();
+
     times[it] = std::chrono::duration<double>(time2 - time1).count();
+
     for (int i = 0; i < dims[0] * dims[2]; i++)
       X[i] = drand48();
   }
@@ -218,15 +236,15 @@ void operations_3 (int dims[], double times[], int iterations, int nthreads){
 }
 
 
-void operations_4 (int dims[], double times[], int iterations, int nthreads, int size){
+void operations_4 (std::vector<int>& dims, std::vector<double>& times, 
+    const int iterations, const int n_threads, const int size) {
   double *A, *B, *X;
   double one = 1.0;
   char transpose = 'N';
-  int alignment = 64;
 
-  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), alignment);
-  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), alignment);
-  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), alignment);
+  A = (double*)mkl_malloc(dims[0] * dims[1] * sizeof(double), ALIGN);
+  B = (double*)mkl_malloc(dims[1] * dims[2] * sizeof(double), ALIGN);
+  X = (double*)mkl_malloc(dims[0] * dims[2] * sizeof(double), ALIGN);
 
   for (int i = 0; i < dims[0] * dims[1]; i++)
     A[i] = drand48();
@@ -238,14 +256,16 @@ void operations_4 (int dims[], double times[], int iterations, int nthreads, int
     X[i] = drand48();
 
   for (int it = 0; it < iterations; it++){
-    cache_flush_par (nthreads);
-    cache_flush_par (nthreads);
-    cache_flush_par (nthreads);
-    initialise_mkl_variable(size);
+    lamb::cacheFlush (n_threads);
+    lamb::cacheFlush (n_threads);
+    lamb::cacheFlush (n_threads);
+    lamb::initialiseMKL(size);
+
     auto time1 = std::chrono::high_resolution_clock::now();
     dgemm_ (&transpose, &transpose, &dims[0], &dims[2], &dims[1], &one, A,
       &dims[0], B, &dims[1], &one, X, &dims[0]);
     auto time2 = std::chrono::high_resolution_clock::now();
+
     times[it] = std::chrono::duration<double>(time2 - time1).count();
     for (int i = 0; i < dims[0] * dims[2]; i++)
       X[i] = drand48();

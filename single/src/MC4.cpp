@@ -15,7 +15,7 @@ using namespace std;
 extern "C" int dgemm_(char*, char*, int*, int*, int*, double*, double*, int*, double*, int*, double*, double*, int*);
 
 bool computation_decision (int *dims, int ndim, int threshold, double lo_margin,
-  double up_margin, lamb::GEMM_Cube &cube);
+  double up_margin, cube::GEMM_Cube &cube);
 
 inline double gemm_flops (int d0, int d1, int d2);
 inline bool within_range (double x, double y, double lo_margin, double up_margin);
@@ -71,7 +71,7 @@ int main (int argc, char **argv){
     if (ofiles[i].fail()){
       printf("Error opening the file for parenthesisation %d\n", i);
     }
-    add_headers (ofiles[i], ndim, iterations);
+    lamb::printHeaderTime(ofiles[i], ndim, iterations);
   }
 
   auto start = std::chrono::high_resolution_clock::now();
@@ -79,7 +79,7 @@ int main (int argc, char **argv){
   // ==================================================================
   //   - - - - - - - - - - - Proper computation  - - - - - - - - - - -
   // ==================================================================
-  initialise_BLAS();
+  lamb::initialiseBLAS();
   for (int i = 0; i < nsamples; i++){
     printf("{");
     // Fix possible values at zero and below min_size

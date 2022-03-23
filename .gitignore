@@ -5,12 +5,16 @@
 
 # results
 *.csv
+*.pdf
 
 # macOS files
 .DS_Store
+
+# VS Code files
+.vscode
 
 # Executables
 *.x
 
 # Objects
-*.o
+*.O

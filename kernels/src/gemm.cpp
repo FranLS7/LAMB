@@ -6,7 +6,7 @@
 #include <vector>
 #include <mkl.h>
 
-#include <common.h>
+#include "common.h"
 #include <omp.h>
 
 using namespace std;
@@ -38,7 +38,7 @@ int main (int argc, char** argv){
     std::cout << "Error opening output file" << endl;
     return(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *B, *C;
@@ -66,9 +66,9 @@ int main (int argc, char** argv){
         C[i] = drand48();
 
       for (int it = 0; it < iterations; it++){
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
         cblas_dgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, one, A,

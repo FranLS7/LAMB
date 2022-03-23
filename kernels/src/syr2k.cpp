@@ -6,7 +6,7 @@
 #include <vector>
 #include <mkl.h>
 
-#include <common.h>
+#include "common.h"
 #include <omp.h>
 
 using namespace std;
@@ -64,9 +64,9 @@ int main (int argc, char** argv){
         C[i] = drand48();
 
       for (int it = 0; it < iterations; it++){
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
         cblas_dsyr2k (CblasRowMajor, CblasUpper, CblasNoTrans, n, k, one, A, k,
@@ -75,7 +75,7 @@ int main (int argc, char** argv){
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      add_line (ofile, dims, ndim, &times[0], iterations);
+      lamb::printTime(ofile, dims, ndim, &times[0], iterations);
 
       mkl_free(A);
       mkl_free(B);
