@@ -43,10 +43,6 @@ int main() {
 
   printMatrix(X);
 
-
-
-
-
   delete[] A.data;
   delete[] B.data;
   delete[] X.data;
