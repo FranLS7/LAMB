@@ -75,9 +75,9 @@ void cacheFlush();
 /**
  * Function that flushes the cache memory for a certain number of threads.
  *
- * @param nthreads  The number of threads for which the cache is flushed.
+ * @param n_threads  The number of threads for which the cache is flushed.
  */
-void cacheFlush (int nthreads);
+void cacheFlush (const int n_threads);
 
 /**
  * Computes an array's minimum value.

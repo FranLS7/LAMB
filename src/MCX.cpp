@@ -64,6 +64,13 @@ void MCX::setDims (const iVector1D& dimensions) {
     resizeInput();
     computeFLOPs();
   }
+  else {
+    dims = dimensions;
+    genEmptyInput();
+    genEmptyInter();
+    algorithms = generateAlgorithms();
+    computeFLOPs();
+  }
 }
 
 /**
@@ -295,6 +302,58 @@ dVector2D MCX::executeInd(const unsigned alg_id, const int iterations, const int
   return times;
 }
 
+
+/**
+ * @brief 
+ * 
+ * @param alg_id Unsigned that identifies the algorithm to be executed.
+ * @param iterations Integer that specifies how many times the algorithm is executed.
+ * @param n_threads Integer with the number of threads to be used.
+ *
+ * @return dVector2D with the execution time of all kernels - total execution in the element.
+ */
+dVector2D MCX::executeIsolated(const unsigned alg_id, const int iterations, const int n_threads) {
+  auto alg = algorithms[alg_id];
+  allocInter(alg);
+  char trans = 'N';
+  double one = 1.0;
+  
+  dVector2D times;
+  times.resize(alg.size() + 1); // we reserve n+1 1D vectors, where n is the number of operations
+                                 // in the algorithm.
+  for (auto& v : times)
+    v.reserve(iterations); // for each of the 1D vectors we reserve as many elements as iterations
+                           // will be computed. This is done so the vectors are not resized.
+  mkl_set_dynamic(false);
+  mkl_set_num_threads(n_threads);
+
+  int op_id = 0;
+  for (auto const &op : alg) {
+    
+    for (int it = 0; it < iterations; it++) {
+      lamb::cacheFlush(n_threads);
+      lamb::cacheFlush(n_threads);
+      lamb::cacheFlush(n_threads);
+      auto before = std::chrono::high_resolution_clock::now();
+      dgemm_(&trans, &trans, &op[0]->rows, &op[1]->columns, &op[0]->columns, 
+          &one, op[0]->data, &op[0]->rows, 
+                op[1]->data, &op[1]->rows, 
+          &one, op[2]->data, &op[2]->rows);
+      auto after = std::chrono::high_resolution_clock::now();
+      times[op_id].push_back(std::chrono::duration<double>(after-before).count());
+    }
+    ++op_id;
+  }
+
+  // FIRST: try with some values and print to check that the output is correct and values are 
+  // stable -> there shouldn't be much difference between GEMMs with the same dimensions.
+  // SECOND: once this is tested, apply the median for each operation internally and compute the 
+  // total time from these medians.
+
+  freeMatrices(inter_matrices);
+  return times;
+}
+
 /**
  * @brief Executes a set of algorithms.
  * 
@@ -356,6 +415,18 @@ dVector3D MCX::executeAllInd(const int iterations, const int n_threads) {
   for (unsigned alg_id = 0; alg_id < algorithms.size(); ++alg_id)
     times.push_back(executeInd(alg_id, iterations, n_threads));
   
+  freeMatrices(input_matrices);
+
+  return times;
+}
+
+dVector3D MCX::executeAllIsolated(const int iterations, const int n_threads) {
+  dVector3D times;
+  allocInput();
+
+  for (unsigned alg_id = 0; alg_id < algorithms.size(); ++alg_id) 
+    times.push_back(executeIsolated(alg_id, iterations, n_threads));
+
   freeMatrices(input_matrices);
 
   return times;

@@ -58,6 +58,9 @@ bool computation_decision (std::vector<int> dims, const int threshold = 500);
 // @TODO -- write comments for this function.
 Anomaly analysePoint(dVector2D& times, std::vector<unsigned long>& flops, const double min_margin);
 
+Anomaly analysePoint(const dVector1D& median_times, std::vector<unsigned long>& flops, 
+    const double min_margin);
+
 /**
  * Checks whether there is an anomaly in the computed results.
  *
@@ -136,8 +139,11 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &
     const int iterations, const int jump, const double min_margin, const unsigned max_points);
 
 std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int iterations, 
-    const int jump, const double min_margin, const int max_out, 
+    const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
     std::vector<lamb::Anomaly>& summary);
+
+std::vector<std::vector<DataPoint>> executeMCXNoCache(const std::deque<lamb::Anomaly> &queue_points,
+    const int iterations, const double min_margin, std::vector<lamb::Anomaly>& summary);
 
 std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly &hit, 
     const int iterations, const int jump, const double min_margin, const unsigned max_points);

@@ -111,6 +111,8 @@ class MCX {
 
     dVector3D executeAllInd(const int iterations, const int n_threads);
 
+    dVector3D executeAllIsolated(const int iterations, const int n_threads);
+
     /**
      * @brief returns the set of dimensions.
      */
@@ -180,6 +182,19 @@ class MCX {
     * @return dVector2D with the execution time of all kernels - total execution in the element.
     */
     dVector2D executeInd(const unsigned alg_id, const int iterations, const int n_threads);
+
+    /**
+     * @brief Executes a certain algorithm and measures each GEMM's execution time without caching
+     * effects. This means the cache is flushed before each GEMM's execution. The output 2D vector
+     * contains a vector for each operation. These 1D vectors (each) contain repetitions of the 
+     * same operation.
+     * 
+     * @param alg_id 
+     * @param iterations 
+     * @param n_threads 
+     * @return dVector2D with the execution time of all kernels without cache effects.
+     */
+    dVector2D executeIsolated(const unsigned alg_id, const int iterations, const int n_threads);
 
     /**
      * @brief Recursive function that, for a set of input matrices and intermediate matrices,

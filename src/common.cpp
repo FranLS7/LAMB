@@ -161,21 +161,22 @@ void cacheFlush(){
 }
 
 /**
- * Function that flushes the cache memory for a certain number of threads.
+ * Function that flushes the cache memory for a certain number of cores.
  *
- * @param n_threads  The number of threads for which the cache is flushed.
+ * @param n_threads  The number of cores for which the cache is flushed.
  */
-void cacheFlush(int n_threads) {
+void cacheFlush(const int n_threads) {
 	if (cs == NULL){
 		cs = (double*)malloc(GEMM_L3_CACHE_SIZE * sizeof(double));
-		for (int i = 0; i < GEMM_L3_CACHE_SIZE; i++)
+		for (int i = 0; i < GEMM_L3_CACHE_SIZE; i++){
 			cs[i] = drand48();
+    }
 	}
   omp_set_num_threads (n_threads);
   #pragma omp parallel shared(cs)
   {
     #pragma omp for schedule(static)
-    for (int i = 0; i < GEMM_L3_CACHE_SIZE; i++){
+    for (int i = 0; i < GEMM_L3_CACHE_SIZE; i++) {
   		cs[i] += 1e-3;
     }
   }

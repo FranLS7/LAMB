@@ -38,35 +38,33 @@ bool computation_decision (std::vector<int> dims, const int threshold) {
 }
 
 Anomaly analysePoint(dVector2D& times, std::vector<unsigned long>& flops, const double min_margin) {
+  dVector1D medians;
+  
+  for (unsigned i = 0; i < times.size(); ++i) medians.push_back(medianVector<double>(times[i]));
+  
+  return analysePoint(medians, flops, min_margin);
+}
+
+Anomaly analysePoint(const dVector1D& median_times, std::vector<unsigned long>& flops, 
+    const double min_margin) {
   Anomaly aux;
   aux.isAnomaly = false;
-  // aux.algs = {-1, -1};
   aux.flops_score = 0.0;
   aux.time_score = 0.0;
-  dVector1D medians;
-
-  for (unsigned i = 0; i < times.size(); ++i) medians.push_back(medianVector<double>(times[i]));
 
   unsigned id_min_flops = idxMinVector(flops);
-  unsigned id_min_times = idxMinVector(times);
+  unsigned id_min_times = idxMinVector(median_times);
   aux.algs = {static_cast<int>(id_min_flops), static_cast<int>(id_min_flops)};
 
-  // double time_score = score(medians[id_min_flops], medians[id_min_times]);
   if (id_min_flops == id_min_times || flops[id_min_flops] == flops[id_min_times]){
     aux.isAnomaly = false;
   }
-  else if (medians[id_min_times] < ((1 - min_margin) * medians[id_min_flops])) {
+  else if (median_times[id_min_times] < ((1 - min_margin) * median_times[id_min_flops])) {
     aux.isAnomaly = true;
     aux.algs = {static_cast<int>(id_min_times), static_cast<int>(id_min_flops)};
     aux.flops_score = score(flops[id_min_flops], flops[id_min_times]);
-    aux.time_score = score(medians[id_min_flops], medians[id_min_times]);
+    aux.time_score = score(median_times[id_min_flops], median_times[id_min_times]);
   }
-  std::cout << "INSIDE ANALYSEPOINT ...\n";
-  std::cout << "isAnomaly: " << aux.isAnomaly << std::endl;
-  std::cout << "algs: " << aux.algs[0] << ", " << aux.algs[1] << std::endl;
-  std::cout << "flops_score: " << aux.flops_score << std::endl;
-  std::cout << "time_score:  " << aux.time_score  << std::endl;
-
   return aux;
 }
 
@@ -323,7 +321,7 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &
 }
 
 std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int iterations, 
-    const int jump, const double min_margin, const int max_out, 
+    const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
     std::vector<lamb::Anomaly>& summary) {
   
   std::vector<std::vector<DataPoint>> results;
@@ -335,9 +333,9 @@ std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int itera
   int count_out = 0; // counter with the number of consecutive non-anomalous points.
   int count_in = 0;  // counter with the number of jumps to the transition point.
 
-  srand(time(NULL));
-  int dim_id = static_cast<int>( static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * 
-  static_cast<double>(hit.dims.size()) );
+  // srand(time(NULL));
+  // int dim_id = static_cast<int>( static_cast<double>(rand()) / static_cast<double>(RAND_MAX) * 
+  // static_cast<double>(hit.dims.size()) );
 
   iVector1D dims = hit.dims;
   mcx::MCX chain(dims);
@@ -375,6 +373,7 @@ std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int itera
     summary.push_back(anomaly);
 
     flopsInd = chain.getFLOPsInd();
+
     // Store information to return it later
     point.dims = dims;
     for (int i = 0; i < chain.getNumAlgs(); ++i) {
@@ -467,11 +466,61 @@ std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int itera
     if (!in && count_out >= count_in)
       keepExploring = false;
     
+    if (dims[dim_id] > max_dim) keepExploring = false;
     std::cout << "\tcount_in:  " << count_in << std::endl;
     std::cout << "\tcount_out: " << count_out << std::endl;
   }
   return results;
 }
+
+std::vector<std::vector<DataPoint>> executeMCXNoCache(const std::deque<lamb::Anomaly> &queue_points,
+    const int iterations, const double min_margin, std::vector<lamb::Anomaly>& summary) {
+  
+  std::vector<std::vector<DataPoint>> results;
+  
+  DataPoint data_point;
+  data_point.samples.resize(queue_points[0].dims.size() - 1);
+
+  mcx::MCX chain (queue_points[0].dims);
+  dVector3D times;
+  dVector1D times_algs (chain.getNumAlgs());
+
+  std::vector<unsigned long> flops;
+  std::vector<std::vector<unsigned long>> flopsInd;
+
+  Anomaly anomaly;
+
+  results.resize(chain.getNumAlgs());
+
+  for (const auto& point : queue_points) {
+    chain.setDims(point.dims);
+
+    flops = chain.getFLOPs();
+    flopsInd = chain.getFLOPsInd();
+
+    times = chain.executeAllIsolated(iterations, point.n_threads);
+
+    data_point.dims = point.dims;
+    for (unsigned i = 0; i < chain.getNumAlgs(); ++i) {
+      double median = 0;
+      for (unsigned j = 0; j < times[i].size() - 1; ++j) {
+        data_point.samples[j] = lamb::medianVector(times[i][j]);
+        median += data_point.samples[j];
+      }
+      times_algs[i] = median;
+      data_point.samples[times[i].size() - 1] = median;
+      data_point.flops = flopsInd[i];
+      results[i].push_back(data_point);
+    }
+
+    anomaly = analysePoint(times_algs, flops, min_margin);
+    anomaly.dims = point.dims;
+    anomaly.n_threads = point.n_threads;
+    summary.push_back(anomaly);
+  }
+  return results;
+}
+
 
 std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly &hit, 
     const int iterations, const int jump, const double min_margin, const unsigned max_points) {
