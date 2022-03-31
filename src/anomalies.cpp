@@ -11,6 +11,7 @@
 
 #include "mkl.h"
 
+#include "AATB.h"
 #include "common.h"
 #include "MCX.h"
 #include "MC4.h"
@@ -284,10 +285,11 @@ std::deque<Anomaly> gridExploration (Anomaly &hit, const int iterations,
  * @param max_points    The total number of points to be checked.
  */
 std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &hit, 
-    const int iterations, const int jump, const double min_margin, const unsigned max_points) {
+    const int iterations, const int jump, const double min_margin, const unsigned max_points,
+    const int max_dim) {
 
   exploratorySpace space;
-  addNeighbours (space, hit, jump);
+  addNeighbours (space, hit, jump, max_dim);
 
   // helper vars
   std::string key;
@@ -296,7 +298,6 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &
   Anomaly candidate;
   mcx::MCX chain (hit.dims);
   candidate.n_threads = hit.n_threads;
-
 
   while (!space.queue.empty() && space.checked.size() < max_points) {
     chain.setDims(space.queue.front());
@@ -311,10 +312,9 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &
     key = serialiseVector<int>(candidate.dims);
     space.checked[key] = candidate;
 
-
     // If it is an anomaly look at the vicinity and add them if not present already in the queue
     if (candidate.isAnomaly) 
-      addNeighbours(space, candidate, jump);
+      addNeighbours(space, candidate, jump, max_dim);
     
   }
   return space.checked;
@@ -523,11 +523,12 @@ std::vector<std::vector<DataPoint>> executeMCXNoCache(const std::deque<lamb::Ano
 
 
 std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly &hit, 
-    const int iterations, const int jump, const double min_margin, const unsigned max_points) {
+    const int iterations, const int jump, const double min_margin, const unsigned max_points, 
+    const int max_dim) {
 
   iVector1D dims;
   exploratorySpace space;
-  addNeighbours (space, hit, jump);
+  addNeighbours (space, hit, jump, max_dim);
 
   // helper vars
   std::string key;
@@ -536,11 +537,14 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly 
   Anomaly candidate;
   candidate.n_threads = hit.n_threads;
 
-
   while (!space.queue.empty() && space.checked.size() < max_points) {
-    // chain.setDims(space.queue.front());
     dims = space.queue.front();
     space.queue.pop_front();
+
+    std::cout << ">> dims: ";
+    for (const auto& d: dims)
+      std::cout << d << ',';
+    std::cout << std::endl;
 
     times = executeAll(dims);
     flops = flopsAll(dims);
@@ -551,12 +555,116 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly 
     key = serialiseVector<int>(candidate.dims);
     space.checked[key] = candidate;
 
-
     // If it is an anomaly look at the vicinity and add them if not present already in the queue
     if (candidate.isAnomaly) 
-      addNeighbours(space, candidate, jump);
+      addNeighbours(space, candidate, jump, max_dim);
+
+    std::cout << "\tIs anomaly? : " << candidate.isAnomaly << '\n';
+    std::cout << "\tComputed points: " << space.checked.size() << '\n';
+    std::cout << "\tQueue points:    " << space.queue.size() << '\n';
   }
   return space.checked;
+}
+
+
+std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iterations, 
+    const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
+    std::vector<lamb::Anomaly>& summary) {
+  
+  int diff = jump;
+  std::vector<std::vector<DataPoint>> results;
+  DataPoint point;
+  point.samples.resize(hit.dims.size());
+
+  bool forward = true;
+  bool keepExploring = true;
+  bool in = true;  // keeps track of whether we are out of the region.
+  int count_out = 0; // counter with the number of consecutive non-anomalous points.
+  int count_in = 0;  // counter with the number of jumps to the transition point.
+
+  iVector1D dims = hit.dims;
+  aatb::AATB expression (dims);
+  dVector3D times;
+  dVector1D algs_times (expression.getNumAlgs());
+  std::vector<unsigned long> flops;
+  std::vector<std::vector<unsigned long>> flopsInd;
+  Anomaly anomaly;
+  results.resize(5);
+
+  // ========================= print information =========================
+  std::cout << ">> Initial dimensions: {";
+  for (const auto& d : hit.dims)
+    std::cout << d << ',';
+  std::cout << "}\n";
+  std::cout << ">> Exploring dimension " << dim_id << "..." << std::endl;
+  // =====================================================================
+
+  while (keepExploring) { // values in one direction
+    std::cout << ">> Computing point: {";
+    for (const auto& d : dims)
+      std::cout << d << ',';
+    std::cout << "}...\n";
+
+    expression.setDims(dims);
+    flops = expression.getFLOPs();
+
+    times = expression.executeAllInd(iterations, hit.n_threads);
+    for (int i = 0; i < expression.getNumAlgs(); ++i)
+      algs_times[i] = lamb::medianVector<double>(times[i].back());
+
+    anomaly = analysePoint(algs_times, flops, min_margin);
+    anomaly.dims = dims;
+    anomaly.n_threads = hit.n_threads;
+    summary.push_back(anomaly);
+
+    flopsInd = expression.getFLOPsInd();
+
+    // Store information to return it later
+    point.dims = dims;
+    for (int i = 0; i < expression.getNumAlgs(); ++i) {
+      for (int j = 0; j < times[i].size(); ++j) {
+        point.samples[j] = lamb::medianVector(times[i][j]);
+      }
+      point.flops = flopsInd[i];
+      results[i].push_back(point);
+    }
+
+    if (in) {
+      if (anomaly.isAnomaly) {
+        count_in = count_in + 1 + count_out;
+        count_out = 0; 
+      }
+      else {
+        ++count_out;
+      }
+    }
+    else
+      ++count_out;
+
+    if (count_out >= max_out)
+      in = false;
+
+    if (!in && count_out >= count_in)
+      keepExploring = false;
+
+    dims[dim_id] -= diff;
+    if (dims[dim_id] <= 0 || dims[dim_id] > max_dim) keepExploring = false;
+    std::cout << "\tcount_in:  " << count_in << std::endl;
+    std::cout << "\tcount_out: " << count_out << std::endl;
+
+    if (!keepExploring && forward) {
+      std::cout << ">> GOING BACKWARDS NOW\n";
+      keepExploring = true;
+      forward = false;
+      diff *= -1;
+      count_in = 0;
+      count_out = 0;
+      dims = hit.dims;
+      dims[dim_id] -= diff;
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -609,8 +717,9 @@ std::deque<Anomaly> dimExploration (Anomaly &hit, const int iterations,
  * @param space   Struct that contains the queue and list of points already checked.
  * @param a       Initial anomaly of which neighbours are explored.
  * @param jump    The difference between contiguous points in a given dimension.
+ * @param max_dim Max size any dimension can take.
  */
-void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump) {
+void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump, const int max_dim) {
   std::vector<int> nearDims;
   std::string key;
 
@@ -620,16 +729,18 @@ void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump) {
     if (a.dims[i] - jump > 0) {
       nearDims[i] = a.dims[i] - jump;
       key = serialiseVector (nearDims);
-      if (std::find (space.queue.begin(), space.queue.end(), nearDims) == space.queue.end() &&
-          space.checked.find (key) == space.checked.end())
-        space.queue.push_back (nearDims);
+      if (std::find(space.queue.begin(), space.queue.end(), nearDims) == space.queue.end() &&
+          space.checked.find(key) == space.checked.end())
+        space.queue.push_back(nearDims);
     }
 
-    nearDims[i] = a.dims[i] + jump;
-    key = serialiseVector (nearDims);
-    if (std::find (space.queue.begin(), space.queue.end(), nearDims) == space.queue.end() &&
-        space.checked.find (key) == space.checked.end())
-      space.queue.push_back (nearDims);
+    if (a.dims[i] + jump < max_dim) {
+      nearDims[i] = a.dims[i] + jump;
+      key = serialiseVector (nearDims);
+      if (std::find(space.queue.begin(), space.queue.end(), nearDims) == space.queue.end() &&
+          space.checked.find(key) == space.checked.end())
+        space.queue.push_back (nearDims);
+    }
   }
 }
 

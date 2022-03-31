@@ -1,9 +1,9 @@
 /**
- * @file arrow_MCX.cpp
+ * @file arrow_AATB.cpp
  * @author FranLS7 (flopz@cs.umu.se)
  * @brief 
  * @version 0.1
- * @date 2022-03-17
+ * @date 2022-03-31
  * 
  * @copyright Copyright (c) 2022
  * 
@@ -20,7 +20,7 @@
 
 int main(int argc, char** argv) {
   std::deque<lamb::Anomaly> queue_anomalies;
-  int ndim = 5;
+  int ndim = 3;
   int jump, max_out;
   double margin_anomaly;
 
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
   std::getline(ifile_anomalies, line);
 
   while (!ifile_anomalies.eof()) {
-    sscanf (line.c_str(), "%d,%d,%d,%d,%d,%d,%d,%d,%lf,%lf", &hit.dims[0], &hit.dims[1],
-      &hit.dims[2], &hit.dims[3], &hit.dims[4], &hit.n_threads,
+    sscanf (line.c_str(), "%d,%d,%d,%d,%d,%d,%lf,%lf", &hit.dims[0], &hit.dims[1],
+      &hit.dims[2], &hit.n_threads,
       &hit.algs[0], &hit.algs[1],
       &hit.flops_score, &hit.time_score);
     
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
       std::string base_out = out_template + "anomaly" + std::to_string(anomaly_id) + "_dim" + 
                          std::to_string(dim_id);
       std::vector<lamb::Anomaly> summary;
-      auto results = lamb::arrowMCX(hit, BENCH_REPS, jump, margin_anomaly, 
+      auto results = lamb::arrowAATB(hit, BENCH_REPS, jump, margin_anomaly, 
                                     max_out, dim_id, max_dim, summary);
       
       for (int i = 0; i < results.size(); ++i) {
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
           std::cerr << "Error opening the output file " << i << std::endl;
           exit(-1);
         }
-        lamb::printHeaderTime(ofile_algs, ndim, 1, ndim - 2, true);
+        lamb::printHeaderTime(ofile_algs, ndim, 1, ndim - 1, true);
 
         for (const auto& point : results[i]) {
           lamb::printTime(ofile_algs, point.dims, point.samples, point.flops);

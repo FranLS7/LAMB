@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     ndim            = atoi(argv[1]);
     n_anomalies     = atoi(argv[2]);
     margin_anomaly  = atof(argv[3]);
-    root_dir.append(argv[4]);
+    root_dir        = argv[4];
     points_filename = root_dir + argv[5];
     out_template    = root_dir + argv[6];
   }

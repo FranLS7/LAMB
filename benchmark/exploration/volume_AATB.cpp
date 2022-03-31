@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -21,29 +22,25 @@
 int main(int argc, char** argv) {
   std::deque<lamb::Anomaly> queue_anomalies;
   int ndim = 3;
-  int jump;
+  int jump;      // the difference in a dimension for consecutive points
+  int n_explore; // points of which the volume should be computed
+  double margin_anomaly;
 
   std::string root_dir, anomaly_filename, out_filename;
   std::ofstream ofile_an;
   std::ifstream anomaly_file;
 
-  if (argc != 5) {
-    std::cout << "Execution: " << argv[0] << " jump root_dir anomaly_filename out_filename\n";
+  if (argc != 7) {
+    std::cout << "Execution: " << argv[0] << " jump n_hits_explore margin_anomaly root_dir anomaly_filename out_filename\n";
     exit(-1);
   } else {
-    jump = atoi(argv[1]);
-    root_dir.append(argv[2]);   // base filename to create output files.
-    anomaly_filename = root_dir + argv[3];
-    out_filename = root_dir + argv[4];
+    jump             = atoi(argv[1]);
+    n_explore        = atoi(argv[2]);
+    margin_anomaly   = atof(argv[3]);
+    root_dir         = argv[4];   // base root for the data directories
+    anomaly_filename = root_dir + argv[5];
+    out_filename     = root_dir + argv[6];
   }
-
-  // ofile_an.open (root_dir + std::string("volume.csv"));
-  // if (ofile_an.fail()) {
-  //   std::cout << "Error opening the file for anomalies volume" << std::endl;
-  //   exit(-1);
-  // } else {
-  //   lamb::print_header_anomalies (ofile_an, ndim);
-  // }
 
   std::string line;
   // Open file with anomalies.
@@ -61,7 +58,7 @@ int main(int argc, char** argv) {
   std::getline(anomaly_file, line);
 
   while (!anomaly_file.eof()) {
-    sscanf (line.c_str(), "%d,%d,%d,%d,%d,%d,%f,%f", &hit.dims[0], &hit.dims[1],
+    sscanf (line.c_str(), "%d,%d,%d,%d,%d,%d,%lf,%lf", &hit.dims[0], &hit.dims[1],
       &hit.dims[2], &hit.n_threads,
       &hit.algs[0], &hit.algs[1],
       &hit.flops_score, &hit.time_score);
@@ -70,16 +67,17 @@ int main(int argc, char** argv) {
       std::getline(anomaly_file, line);
   }
 
-  std::cout << "Number of hits: " << queue_anomalies.size() << std::endl;
+  std::cout << "Number of initial anomalies: " << queue_anomalies.size() << std::endl;
   anomaly_file.close();
 
 
   std::unordered_map<std::string, lamb::Anomaly> volume;
   int explored_hit = 0;
   unsigned long long num_anomalies = 0;
+  int max_dim = 1200;
   auto start = std::chrono::high_resolution_clock::now();
 
-  while (!queue_anomalies.empty() && explored_hit < 200) {
+  while (!queue_anomalies.empty() && explored_hit < n_explore) {
     ofile_an.open(out_filename + std::to_string(explored_hit) + ".csv", std::ofstream::out);
     if (ofile_an.fail()) {
       std::cerr << "Error opening the file with volume." << std::endl;
@@ -93,7 +91,8 @@ int main(int argc, char** argv) {
     std::cout << "Computing hit number " << explored_hit << "...\n";
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    volume = lamb::iterativeExplorationAATB(hit, BENCH_REPS, jump, MARGIN_AN, 1000);
+    volume = lamb::iterativeExplorationAATB(hit, BENCH_REPS, jump, MARGIN_AN, 
+                                            1000, max_dim);
     auto t1 = std::chrono::high_resolution_clock::now();
 
     std::cout << "\tTotal points checked for hit " << explored_hit << ": " 
@@ -102,13 +101,10 @@ int main(int argc, char** argv) {
     std::cout << "\tTime computing: " << std::chrono::duration<double>(t1 - t0).count() << std::endl;
 
     for (const auto& instance : volume) {
-      if (instance.second.isAnomaly) {
+      if (instance.second.isAnomaly)
         num_anomalies++;
-        lamb::print_anomaly(ofile_an, instance.second);
-      }
+      lamb::print_anomaly(ofile_an, instance.second);
     }
-
-
     ofile_an.close();
 
     ++explored_hit;

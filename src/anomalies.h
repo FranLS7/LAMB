@@ -136,7 +136,8 @@ std::deque<Anomaly> gridExploration (Anomaly &hit, const int iterations,
  * @param max_points    The total number of points to be checked.
  */
 std::unordered_map<std::string, Anomaly> iterativeExplorationMCX(const Anomaly &hit, 
-    const int iterations, const int jump, const double min_margin, const unsigned max_points);
+    const int iterations, const int jump, const double min_margin, const unsigned max_points,
+    const int max_dim);
 
 std::vector<std::vector<DataPoint>> arrowMCX(const Anomaly& hit, const int iterations, 
     const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
@@ -146,7 +147,12 @@ std::vector<std::vector<DataPoint>> executeMCXNoCache(const std::deque<lamb::Ano
     const int iterations, const double min_margin, std::vector<lamb::Anomaly>& summary);
 
 std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly &hit, 
-    const int iterations, const int jump, const double min_margin, const unsigned max_points);
+    const int iterations, const int jump, const double min_margin, const unsigned max_points, 
+    const int max_dim);
+
+std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iterations, 
+    const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
+    std::vector<lamb::Anomaly>& summary);
 
 /**
  * Explores the space around a certain initial anomaly (hit) by modifying a single dimension
@@ -172,8 +178,9 @@ std::deque<Anomaly> dimExploration (Anomaly &hit, const int iterations,
  * @param space   Struct that contains the queue and list of points already checked.
  * @param a       Initial anomaly of which neighbours are explored.
  * @param jump    The difference between contiguous points in a given dimension.
+ * @param max_dim Max size any dimension can take.
  */
-void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump);
+void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump, const int max_dim);
 
 /**
  * Adds the headers to an output file for anomalies. Format:

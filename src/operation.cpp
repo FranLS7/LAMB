@@ -17,7 +17,6 @@
 
 #include "mkl.h"
 
-#include "anomalies.h"
 #include "common.h"
 
 const int ALIGN = 64;

@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
 
   // write results to files
   for (unsigned int alg = 0; alg < times[0].size(); ++alg){
-    ofile.open(root_dir + filename + std::to_string(alg) + std::string(".csv"));
+    ofile.open(root_dir + filename + "_alg" + std::to_string(alg) + std::string(".csv"));
     if (ofile.fail()) {
       std::cerr << ">> ERROR: opening the result files for alg " << alg << std::endl;
       exit(-1);
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
   }
 
   // write the summary of anomalies
-  ofile.open(root_dir + filename + std::string("summary.csv"));
+  ofile.open(root_dir + filename + std::string("_summary.csv"));
   lamb::print_header_anomalies(ofile, ndim);
   for (const auto& an : summary)
     lamb::print_anomaly(ofile, an);

@@ -1,5 +1,5 @@
-#ifndef MC_FUNC
-#define MC_FUNC
+#ifndef __MCX_H__
+#define __MCX_H__
 
 #include <string>
 #include <vector>
@@ -103,7 +103,6 @@ class MCX {
      * 
      * @param iterations Integer that specifies the number of times the algorithm is executed.
      * @param n_theads Integer with the number of threads to be used.
-     * @param individual bool used to decide whether each GEMM must be timed on its own.
      * 
      * @return A 2D vector with all the execution times for the algorithms.
      */
