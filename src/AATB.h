@@ -14,8 +14,9 @@ namespace aatb
   private:
     iVector1D dims;
 
-    Matrix A, B; // both input matrices, A and B
-    Matrix M;    // intermediate result
+    Matrix A, B; // Input matrices, A and B
+    Matrix M;    // Intermediate result matrix
+    Matrix X;    // Output matrix
 
     std::vector<unsigned long> FLOPs;
 
@@ -99,7 +100,7 @@ namespace aatb
      * each operation without cache effects.
      *
      * The purpose is to measure the execution time of each operation without cache effects
-     * The input matrices are allocated within this function - only once. As expected, 
+     * The input matrices are allocated within this function - only once. As expected,
      * these matrices are freed at the end on the function.
      *
      * @param iterations Number of times each algorithm is executed.
@@ -116,6 +117,15 @@ namespace aatb
     void setDims(const iVector1D &dimensions);
 
     /**
+     * @brief Sets the set of dimensions of the problem to be the one given as an argument.
+     *
+     * @param m first dimension  - rows of A
+     * @param k second dimension - columns of A
+     * @param n third dimension  - columns of B
+     */
+    void setDims(const int m, const int k, const int n);
+
+    /**
      * @brief Get the dimensions of the object.
      *
      * @return vector<int> with the dimensions.
@@ -128,11 +138,47 @@ namespace aatb
     unsigned getNumAlgs() const;
 
   private:
-    dVector1D execute(const unsigned alg_id, const int iterations, const int n_threads);
+    /**
+     * @brief Computes algorithm 0 and returns the execution times of all the iterations.
+     *
+     * @param iterations Number of times the algorithm is executed.
+     * @param n_threads  Number of threads to use in the algorithm.
+     * @return dVector1D with the times of every iteration.
+     */
+    dVector1D alg0(const int iterations, const int n_threads);
+    dVector1D alg1(const int iterations, const int n_threads);
+    dVector1D alg2(const int iterations, const int n_threads);
+    dVector1D alg3(const int iterations, const int n_threads);
+    dVector1D alg4(const int iterations, const int n_threads);
 
-    dVector2D executeInd(const unsigned alg_id, const int iterations, const int n_threads);
+    /**
+     * @brief Computes algorithm 0 and returns execution times for all the operations and
+     * the iterations.
+     *
+     * @param iterations Number of times the algorithm is executed.
+     * @param n_threads  Number of threads to use in the algorithm.
+     * @return dVector2D with the times for each operation and iteration. {operation, iteration}
+     */
+    dVector2D alg0Ind(const int iterations, const int n_threads);
+    dVector2D alg1Ind(const int iterations, const int n_threads);
+    dVector2D alg2Ind(const int iterations, const int n_threads);
+    dVector2D alg3Ind(const int iterations, const int n_threads);
+    dVector2D alg4Ind(const int iterations, const int n_threads);
 
-    dVector2D executeIsolated(const unsigned alg_id, const int iterations, const int n_threads);
+    /**
+     * @brief Computes algorithm 0 and returns execution times without cache effects for
+     * the single operations.
+     *
+     * @param iterations Number of times the algorithm is executed.
+     * @param n_threads  Number of threads to use in the algorithm.
+     * @return dVector2D with the times without cache effects for each operation and iteration.
+     * {operation, iteration}
+     */
+    dVector2D alg0Isolated(const int iterations, const int n_threads);
+    dVector2D alg1Isolated(const int iterations, const int n_threads);
+    dVector2D alg2Isolated(const int iterations, const int n_threads);
+    dVector2D alg3Isolated(const int iterations, const int n_threads);
+    dVector2D alg4Isolated(const int iterations, const int n_threads);
 
     /**
      * @brief Computes the cost in terms of FLOPs for each algorithm.
@@ -247,16 +293,22 @@ namespace aatb
      * This function allocates memory for the intermediate matrix and initialises it
      * with zeroes. The actual sizes of this matrix depend on the algorithm to be solved.
      *
-     * @param alg
+     * @param first_left Determines whether the leftmost pair is computed.
      */
-    void allocInter();
+    void allocInter(const bool first_left);
+
+    /**
+     * @brief Free memory for the input matrices.
+     *
+     */
+    void freeInput();
 
     /**
      * @brief Frees the memory allocated to the matrices within the input vector.
      *
      * @param matrices Vector with matrices of which the memory is freed.
      */
-    void freeMatrices(std::vector<Matrix> &matrices);
+    void freeInter();
   };
 
 } // end namespace aatb
