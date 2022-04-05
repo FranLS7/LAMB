@@ -667,6 +667,54 @@ std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iter
   return results;
 }
 
+std::vector<std::vector<DataPoint>> executeAATBNoCache(const std::deque<lamb::Anomaly> &queue_points,
+    const int iterations, const double min_margin, std::vector<lamb::Anomaly>& summary) {
+  
+  std::vector<std::vector<DataPoint>> results; // {algorithm, instance}
+  
+  DataPoint data_point;
+  data_point.samples.resize(queue_points[0].dims.size());
+
+  aatb::AATB expression(queue_points[0].dims);
+  dVector3D times;
+  dVector1D times_algs (expression.getNumAlgs());
+
+  std::vector<unsigned long> flops;
+  std::vector<std::vector<unsigned long>> flopsInd;
+
+  Anomaly anomaly;
+
+  results.resize(expression.getNumAlgs());
+
+  for (const auto& point : queue_points) {
+    expression.setDims(point.dims);
+
+    flops = expression.getFLOPs();
+    flopsInd = expression.getFLOPsInd();
+
+    times = expression.executeAllIsolated(iterations, point.n_threads);
+
+    data_point.dims = point.dims;
+    for (unsigned i = 0; i < expression.getNumAlgs(); ++i) {
+      double median = 0;
+      for (unsigned j = 0; j < times[i].size() - 1; ++j) {
+        data_point.samples[j] = lamb::medianVector(times[i][j]);
+        median += data_point.samples[j];
+      }
+      times_algs[i] = times[i].back()[0];
+      data_point.samples.back() = times[i].back()[0];
+      data_point.flops = flopsInd[i];
+      results[i].push_back(data_point);
+    }
+
+    anomaly = analysePoint(times_algs, flops, min_margin);
+    anomaly.dims = point.dims;
+    anomaly.n_threads = point.n_threads;
+    summary.push_back(anomaly);
+  }
+  return results;
+}
+
 /**
  * Explores the space around a certain initial anomaly (hit) by modifying a single dimension
  * independently. This means that only one dimension is modified at a given step in the process.

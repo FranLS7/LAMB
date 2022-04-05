@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
   if (argc != 7) {
     std::cerr << "Execution: " << argv[0] << " jump max_out margin_anomaly root_dir anomaly_filename"
-    " out_template\n";
+                                             " out_template\n";
     exit(-1);
   } else {
     jump = atoi(argv[1]);

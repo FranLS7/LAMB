@@ -154,6 +154,9 @@ std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iter
     const int jump, const double min_margin, const int max_out, const int dim_id, const int max_dim,
     std::vector<lamb::Anomaly>& summary);
 
+std::vector<std::vector<DataPoint>> executeAATBNoCache(const std::deque<lamb::Anomaly> &queue_points,
+    const int iterations, const double min_margin, std::vector<lamb::Anomaly>& summary);
+
 /**
  * Explores the space around a certain initial anomaly (hit) by modifying a single dimension
  * independently. This means that only one dimension is modified at a given step in the process.
