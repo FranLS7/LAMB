@@ -2,12 +2,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib
+# from matplotlib import rc
 
 if __name__ == "__main__":
   sns.set_style("dark")
-  sns.set_context("talk")
+  sns.set_context('poster')
 
-  data_dir = "multi/timings/paper/anomalies_MCX/"
+  # matplotlib.rcParams.update({'font.size': 52})
+  # sns.set(font_scale = 12)
+  # rc('font',**{'family':'serif','serif':['Palatino']})
+
+  data_dir = "data/timings/paper/anomalies_MCX/"
   filename = "summary.csv"
 
   data = pd.read_csv(data_dir + filename)
@@ -43,8 +49,8 @@ if __name__ == "__main__":
   sns.histplot(x=time_score, palette="inferno_r")
   # plt.savefig("fig.pdf", format="pdf")
 
-  plt.figure()
-  plt.title("Time Score vs FLOP Score")
+  fig, ax = plt.subplots()
+  # plt.title("Time Score vs FLOP Score")
   plt.ylabel("Time score")
   plt.ylim(bottom=0.0, top=0.41)
   plt.xlabel("FLOP score")
@@ -52,6 +58,9 @@ if __name__ == "__main__":
   plt.grid(True)
   distance = np.sqrt(time_score ** 2 + flop_score ** 2)
   sns.scatterplot(x=flop_score, y=time_score, hue=distance)
+  ax.get_legend().remove()
+  # plt.legend()
+  
 
   plt.figure()
   data["time_score"].plot.density()

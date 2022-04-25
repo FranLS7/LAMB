@@ -10,8 +10,8 @@ TPP_SERVER = 240e9
 def symm_flops (sizes):
     return (2 * sizes[0] * sizes[0] * sizes[1])
 
-data_dir = "../multi/timings/symm/"
-data_file = "symm_timings.csv"
+data_dir = "data/timings/performance_profile/"
+data_file = "symm.csv"
 
 data = np.genfromtxt (data_dir + data_file, delimiter=',', skip_header=1)
 sizes = data[:,:2]
@@ -29,4 +29,6 @@ plt.ylabel ("Efficiency [%]")
 plt.ylim(0, 1.0)
 plt.grid(True)
 plt.plot (sizes[:,1], median_eff)
+
+plt.show()
 
