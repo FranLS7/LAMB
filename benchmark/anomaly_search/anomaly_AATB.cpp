@@ -115,9 +115,9 @@ int main(int argc, char **argv)
 
   // write the summary of anomalies
   ofile.open(root_dir + filename + std::string("_summary.csv"));
-  lamb::print_header_anomalies(ofile, ndim);
+  lamb::printHeaderAnomaly(ofile, ndim);
   for (const auto &an : summary)
-    lamb::print_anomaly(ofile, an);
+    lamb::printAnomaly(ofile, an);
   ofile.close();
 
   return 0;

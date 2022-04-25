@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib import cm
 
-# "./MC3/timings/3D/"
 data_dir = "../cube/timings/"
 # data_file = "cube_1500_10th.csv"
 

@@ -87,17 +87,3 @@ if __name__ == "__main__":
   # ax2.set_ylabel("Anomalies in Region")
   # ax2.set_yticks(np.arange(0, 1001, 200))
   # plt.show()
-
-
-
-
-
-
-
-
-  # data = pd.read_csv(data_dir + filename)
-
-  # dims = data[["d0", "d1", "d2", "d3", "d4"]]
-  # print(dims.shape)
-  # kaka = np.unique(dims, axis=0)
-  # print(kaka.shape)

@@ -101,10 +101,10 @@ int main(int argc, char** argv) {
         std::cerr << "Error opening the summary file\n";
         exit(-1);
       }
-      lamb::print_header_anomalies(ofile_summary, ndim);
+      lamb::printHeaderAnomaly(ofile_summary, ndim);
 
       for (const auto& anomaly : summary)
-        lamb::print_anomaly(ofile_summary, anomaly);
+        lamb::printAnomaly(ofile_summary, anomaly);
       
       ofile_summary.close();
     }

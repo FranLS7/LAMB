@@ -53,7 +53,7 @@ struct exploratorySpace {
  * @return          True if at least one dimension is smaller than threshold.
  * False, otherwise.
  */
-bool computation_decision (std::vector<int> dims, const int threshold = 500);
+bool computation_decision(std::vector<int> dims, const int threshold = 500);
 
 // @TODO -- write comments for this function.
 Anomaly analysePoint(dVector2D& times, std::vector<unsigned long>& flops, const double min_margin);
@@ -61,57 +61,7 @@ Anomaly analysePoint(dVector2D& times, std::vector<unsigned long>& flops, const 
 Anomaly analysePoint(const dVector1D& median_times, std::vector<unsigned long>& flops, 
     const double min_margin);
 
-unsigned getFastestCheap (const dVector1D& median_times, std::vector<unsigned long>& flops);
-
-/**
- * Checks whether there is an anomaly in the computed results.
- *
- * @param candidate   anomaly struct that might be an anomaly.
- * @param times       The array containing all the execution times.
- * @param iterations  The number of times each algorithm has been computed.
- * @param lo_margin   Minimum difference between median values to consider a
- * point as an anomaly.
- * @param ratio       The percentage of total executions for which the
- * algorithm with more FLOPs must be faster.
- */
-void search_anomaly_pair(Anomaly &candidate, std::vector<std::vector<double>> times,
-    const double ratio);
-
-/**
- * Looks for anomalies and returns them within a vector.
- * 
- * @param dims        Vector with the problem's dimensions.
- * @param times       2D vector with all the algorithms execution times.
- * @param algs        Vector with all the algorithms involved.
- * @param lo_margin   Minimum difference between median values to consider a
- *                    point as an anomaly.
- * @param ratio       The percentage of total executions for which the
- *                    algorithm with more FLOPs must be faster.
- * @param n_threads   Number of threads used for computation.
- * @return            The anomalies found.
- */
-std::vector<Anomaly> search_anomaly (std::vector<int> dims, std::vector<std::vector<double>> times, 
-    std::vector<int> algs, const double lo_margin, const double ratio, const int n_threads);
-
-std::vector<Anomaly> search_anomaly_MCX (const std::vector<int>& dims, 
-    const std::vector<unsigned long>& flops, std::vector<std::vector<double>>& times, 
-    const std::vector<int>& algs, const double lo_margin, 
-    const double ratio, const int n_threads);
-
-/**
- * Checks whether there is an anomaly between one pair of algorithms.
- *
- * @param flops_a     The #FLOPs for the first algorithm.
- * @param flops_b     The #FLOPs for the second algorithm.
- * @param times_a     The execution times for the first algorithm.
- * @param times_b     The execution times for the second algorithm.
- * @param iterations  The number of times each algorithm is computed.
- * @param ratio       The percentage of total executions for which the
- *                      algorithm with more FLOPs must be faster.
- * @return            Whether there is an anomaly for this pair.
- */
-bool is_anomaly (const unsigned long long int flops_a, const unsigned long long int flops_b,
-  const std::vector<double> times_a, const std::vector<double> times_b, const double ratio);
+unsigned getFastestCheap(const dVector1D& median_times, std::vector<unsigned long>& flops);
 
 /**
  * Explores a certain limited hyperspace around a hit (anomaly)
@@ -123,7 +73,7 @@ bool is_anomaly (const unsigned long long int flops_a, const unsigned long long 
  * @param ratio       Relative number of times a alg must be faster than the other one.
  * @param ofile       The output file where results are printed.
  */
-std::deque<Anomaly> gridExploration (Anomaly &hit, const int iterations, 
+std::deque<Anomaly> gridExploration(Anomaly &hit, const int iterations, 
     const int span, const int jump, const double ratio);
 
 /**
@@ -172,7 +122,7 @@ std::vector<std::vector<DataPoint>> executeAATBNoCache(const std::deque<lamb::An
  * @param ratio       Relative number of times a alg must be faster than the other one.
  * @param ofile       The output file where results are printed.
  */
-std::deque<Anomaly> dimExploration (Anomaly &hit, const int iterations, 
+std::deque<Anomaly> dimExploration(Anomaly &hit, const int iterations, 
     const int span, const int jump, const double ratio);
 
 /**
@@ -185,7 +135,7 @@ std::deque<Anomaly> dimExploration (Anomaly &hit, const int iterations,
  * @param jump    The difference between contiguous points in a given dimension.
  * @param max_dim Max size any dimension can take.
  */
-void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump, const int max_dim);
+void addNeighbours(exploratorySpace &space, const Anomaly &a, const int jump, const int max_dim);
 
 /**
  * Adds the headers to an output file for anomalies. Format:
@@ -194,7 +144,7 @@ void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump, c
  * @param ofile   Output file manager already opened.
  * @param ndim    The number of dimensions in the problem.
  */
-void print_header_anomalies (std::ofstream &ofile, const int ndim);
+void printHeaderAnomaly(std::ofstream &ofile, const int ndim);
 
 /**
  * Adds a line to an output file/stream for anomalies. Format:
@@ -203,7 +153,7 @@ void print_header_anomalies (std::ofstream &ofile, const int ndim);
  * @param ofile Output manager already opened.
  * @param an    The anomaly to be printed in the file.
  */
-void print_anomaly (std::ostream &ofile, const Anomaly& an);
+void printAnomaly(std::ostream &ofile, const Anomaly& an);
 
 /**
  * Prints the headers to an output validation file for anomalies. Format:
@@ -212,7 +162,7 @@ void print_anomaly (std::ostream &ofile, const Anomaly& an);
  * @param ofile   Output file manager already opened.
  * @param ndim    The number of dimensions in the problem.
  */
-void print_header_validation (std::ofstream &ofile, const int ndim);
+void printHeaderVal(std::ofstream &ofile, const int ndim);
 
 /**
  * Prints a line in the output anomaly validation file. Format:
@@ -222,31 +172,7 @@ void print_header_validation (std::ofstream &ofile, const int ndim);
  * @param an              The anomaly to be printed in the file.
  * @param new_time_score  The old time score validated.
  */
-void print_validation (std::ofstream &ofile, const Anomaly& an, const float old_time_score);
-
-/**
- * Adds the headers to an output file in validation phase. Format:
- * | ndim dims || alg || nsamples samples |
- *
- * @param ofile     The output file manager, which has been previously opened.
- * @param ndim      The number of problem dimensions.
- * @param nsamples  The number of samples that will be computed.
- */
-void print_header_val_time (std::ofstream &ofile, const int ndim, const int nsamples);
-
-/**
- * Adds a line in the already opened ofile for validation phase. Format:
- * | dims || n_alg || samples |
- *
- * @param ofile     Output file manager which has been previously opened.
- * @param dims      The array with the problem dimensions.
- * @param ndim      The number of dimensions in the problem.
- * @param times     The array that contains the execution times (already computed).
- * @param nsamples  The number of samples to store in the output file.
- * @param alg        Value that indicates which algorithm is stored.
- */
-void print_val_time (std::ofstream &ofile, const int dims[], const int ndim, 
-    const double times[], const int nsamples, const int alg);
+void printVal(std::ofstream &ofile, const Anomaly& an, const float old_time_score);
 
 } // namespace lamb
 #endif

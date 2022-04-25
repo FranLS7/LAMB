@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
       std::cerr << "Error opening the file with volume." << std::endl;
       exit(-1);
     }
-    lamb::print_header_anomalies(ofile_an, ndim);
+    lamb::printHeaderAnomaly(ofile_an, ndim);
 
     hit = queue_anomalies.front();
     queue_anomalies.pop_front();
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
     for (const auto& instance : volume) {
       if (instance.second.isAnomaly)
         num_anomalies++;
-      lamb::print_anomaly(ofile_an, instance.second);
+      lamb::printAnomaly(ofile_an, instance.second);
     }
     ofile_an.close();
 

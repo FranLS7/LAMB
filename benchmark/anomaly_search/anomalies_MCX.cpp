@@ -67,7 +67,7 @@ int main (int argc, char **argv) {
     std::cout << "Error opening the file for anomalies summary" << std::endl;
     exit(-1);
   } else {
-    lamb::print_header_anomalies (ofile_an, ndim);
+    lamb::printHeaderAnomaly(ofile_an, ndim);
   }
 
   // ==================================================================
@@ -109,7 +109,7 @@ int main (int argc, char **argv) {
           lamb::printTime(ofiles[i], dims, times[i]);
         anomaly.dims = dims;
         anomaly.n_threads = N_THREADS;
-        lamb::print_anomaly(ofile_an, anomaly);
+        lamb::printAnomaly(ofile_an, anomaly);
       }
     }
   }

@@ -14,8 +14,7 @@
 #include "AATB.h"
 #include "common.h"
 #include "MCX.h"
-#include "MC4.h"
-#include "operation.h"
+// #include "MC4.h"
 
 namespace lamb {
 /**
@@ -84,156 +83,6 @@ unsigned getFastestCheap (const dVector1D& median_times, std::vector<unsigned lo
   return id_fast_cheap;
 }
 
-/**
- * Checks whether there is an anomaly in the computed results.
- * 
- * These results correspond to just one pair of algorithms, therefore, times is 
- * a vector with 2 vectors of doubles, where each of these doubles belongs to a certain
- * execution of one of the algorithms. The dimensions, algorithms and number of 
- * threads to use are included within the /anomaly/ variable.
- *
- * @param candidate   anomaly struct that might be an anomaly.
- * @param times       The array containing the execution times of both algorithms.
- * @param ratio       The percentage of total executions for which the
- * algorithm with more FLOPs must be faster.
- */
-void search_anomaly_pair(Anomaly &candidate, std::vector<std::vector<double>> times,
-    const double ratio) {
-
-  std::vector<unsigned long long int> flops;
-  std::vector<double> medians;
-
-  unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-
-  for (unsigned p = 0; p < candidate.algs.size(); p++){
-    flops.push_back (mc4::MC4_flops(candidate.dims, candidate.algs[p]));
-    medians.push_back (medianVector (times[p]));
-    shuffle (times[p].begin(), times[p].end(), std::default_random_engine(seed));
-  }
-
-  candidate.time_score = score (medians[0], medians[1]);
-
-  if (is_anomaly (flops[0], flops[1], times[0], times[1], ratio)) {
-    candidate.flops_score =   score (flops[0], flops[1]);
-    candidate.isAnomaly = true;
-  } else {
-    candidate.flops_score = - score (flops[0], flops[1]);
-    candidate.isAnomaly = false;
-  }
-}
-
-/**
- * Looks for anomalies and returns them within a vector.
- * 
- * @param dims        Vector with the problem's dimensions.
- * @param times       2D vector with all the algorithms execution times.
- * @param algs        Vector with all the algorithms involved.
- * @param min_margin  Minimum difference between median values to consider a
- *                    point as an anomaly.
- * @param ratio       The percentage of total executions for which the
- *                    algorithm with more FLOPs must be faster.
- * @param n_threads   Number of threads used for computation.
- * @return            The anomalies found in the form of a vector.
- */
-std::vector<Anomaly> search_anomaly (std::vector<int> dims, std::vector<std::vector<double>> times, 
-    std::vector<int> algs, const double min_margin, const double ratio, const int n_threads) {
-  std::vector<Anomaly> anomalies_found;
-  Anomaly aux_anomaly;
-
-  std::vector<unsigned long long int> flops;
-  std::vector<double> medians;
-  double time_score;
-
-  unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  for (unsigned p = 0; p < algs.size(); p++) {
-    flops.push_back (mc4::MC4_flops(dims, algs[p]));
-    medians.push_back (medianVector(times[p]));
-    shuffle (times[p].begin(), times[p].end(), std::default_random_engine(seed));
-  }
-
-  for (unsigned i = 0; i < algs.size(); i++) {
-    for (unsigned j = i + 1; j < algs.size(); j++) {
-      time_score = score<double> (medians[i], medians[j]);
-
-      if ((time_score >= min_margin) && is_anomaly(flops[i], flops[j], times[i], times[j], ratio)) {
-        aux_anomaly.dims = dims;
-        aux_anomaly.algs = {int(i), int(j)};
-        aux_anomaly.n_threads = n_threads;
-        aux_anomaly.flops_score = score<unsigned long long int> (flops[i], flops[j]);
-        aux_anomaly.time_score = time_score;
-        aux_anomaly.isAnomaly = true;
-        anomalies_found.push_back (aux_anomaly);
-      }
-    }
-  }
-  return anomalies_found;
-}
-
-std::vector<Anomaly> search_anomaly_MCX (const std::vector<int>& dims, 
-    const std::vector<unsigned long>& flops, std::vector<std::vector<double>>& times, 
-    const std::vector<int>& algs, const double min_margin, 
-    const double ratio, const int n_threads) {
-
-  std::vector<Anomaly> anomalies_found;
-  Anomaly aux_anomaly;
-
-  std::vector<double> medians;
-  double time_score;
-
-  unsigned seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  for (unsigned p = 0; p < algs.size(); p++) {
-    medians.push_back (medianVector(times[p]));
-    shuffle (times[p].begin(), times[p].end(), std::default_random_engine(seed));
-  }
-
-  for (unsigned i = 0; i < algs.size(); i++) {
-    for (unsigned j = i + 1; j < algs.size(); j++) {
-      time_score = score<double> (medians[i], medians[j]);
-
-      if ((time_score >= min_margin) && is_anomaly(flops[i], flops[j], times[i], times[j], ratio)) {
-        aux_anomaly.dims = dims;
-        aux_anomaly.algs = {int(i), int(j)};
-        aux_anomaly.n_threads = n_threads;
-        aux_anomaly.flops_score = score<unsigned long> (flops[i], flops[j]);
-        std::cout << "FLOPs score: " << aux_anomaly.flops_score << std::endl;
-        aux_anomaly.time_score = time_score;
-        aux_anomaly.isAnomaly = true;
-        anomalies_found.push_back (aux_anomaly);
-      }
-    }
-  }
-  return anomalies_found;
-}
-
-/**
- * Checks whether there is an anomaly between one pair of algorithms.
- *
- * @param flops_a     The #FLOPs for the first algorithm.
- * @param flops_b     The #FLOPs for the second algorithm.
- * @param times_a     The execution times for the first algorithm.
- * @param times_b     The execution times for the second algorithm.
- * @param iterations  The number of times each algorithm is computed.
- * @param ratio       The percentage of total executions for which the
- *    algorithm with more FLOPs must be faster.
- * @return            Whether there is an anomaly for this pair.
- */
-bool is_anomaly (const unsigned long long int flops_a, const unsigned long long int flops_b,
-  const std::vector<double> times_a, const std::vector<double> times_b, const double ratio){
-  int n_anomalies = 0;
-
-  if (flops_a < flops_b) {
-    for (unsigned i = 0; i < times_a.size(); i++){
-      if (times_b[i] < times_a[i])
-        n_anomalies++;
-    }
-  } else if (flops_b < flops_a){
-    for (unsigned i = 0; i < times_b.size(); i++){
-      if (times_a[i] < times_b[i])
-        n_anomalies++;
-    }
-  }
-  return n_anomalies >= int(times_a.size() * ratio);
-}
 
 /**
  * Explores a limited hyperspace around a hit (anomaly).
@@ -247,45 +96,7 @@ bool is_anomaly (const unsigned long long int flops_a, const unsigned long long 
  */
 std::deque<Anomaly> gridExploration (Anomaly &hit, const int iterations, 
     const int span, const int jump, const double ratio) {
-
-  std::deque<Anomaly> anomalies_found;
-
-  int ticks = int (span / jump) * 2 + 1;
-
-  // helper variable that will be reused for different points in the search space.
-  Anomaly candidate;
-  candidate.algs = hit.algs;
-  candidate.n_threads = hit.n_threads;
-
-  std::vector<int> base_dims;
-  for (auto x : hit.dims)
-    base_dims.push_back (x - int(span / jump) * jump);
-  candidate.dims = base_dims;
-
-  std::vector<std::vector<double>> times;
-  for (int d0 = 0; d0 < ticks; d0++) {
-    candidate.dims[0] = base_dims[0] + d0 * jump;
-    for (int d1 = 0; d1 < ticks; d1++) {
-      candidate.dims[1] = base_dims[1] + d1 * jump;
-      for (int d2 = 0; d2 < ticks; d2++) {
-        candidate.dims[2] = base_dims[2] + d2 * jump;
-        for (int d3 = 0; d3 < ticks; d3++) {
-          candidate.dims[3] = base_dims[3] + d3 * jump;
-          for (int d4 = 0; d4 < ticks; d4++) {
-            candidate.dims[4] = base_dims[4] + d4 * jump;
-            std::cout << "About to compute {";
-            for (auto &x : candidate.dims)
-              std::cout << x << ",";
-            std::cout << "}" << '\n';
-            times = mc4::MC4_execute_par (candidate.dims, candidate.algs, iterations, candidate.n_threads);
-            search_anomaly_pair(candidate, times, ratio);
-            anomalies_found.push_back(candidate);
-          }
-        }
-      }
-    }
-  }
-  return anomalies_found;
+  // To be implemented for MCX.h and AATB.h
 }
 
 /**
@@ -551,21 +362,17 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly 
   std::vector<unsigned long> flops;
   Anomaly candidate;
   candidate.n_threads = hit.n_threads;
+  aatb::AATB expression (hit.dims);
 
   while (!space.queue.empty() && space.checked.size() < max_points) {
-    dims = space.queue.front();
+    expression.setDims(space.queue.front());
     space.queue.pop_front();
 
-    std::cout << ">> dims: ";
-    for (const auto& d: dims)
-      std::cout << d << ',';
-    std::cout << std::endl;
-
-    times = executeAll(dims);
-    flops = flopsAll(dims);
+    times = expression.executeAll(iterations, hit.n_threads);
+    flops = expression.getFLOPs();
 
     candidate = analysePoint(times, flops, min_margin);
-    candidate.dims = dims;
+    candidate.dims = expression.getDims();
     candidate.n_threads = hit.n_threads;
     key = serialiseVector<int>(candidate.dims);
     space.checked[key] = candidate;
@@ -574,9 +381,6 @@ std::unordered_map<std::string, Anomaly> iterativeExplorationAATB(const Anomaly 
     if (candidate.isAnomaly) 
       addNeighbours(space, candidate, jump, max_dim);
 
-    std::cout << "\tIs anomaly? : " << candidate.isAnomaly << '\n';
-    std::cout << "\tComputed points: " << space.checked.size() << '\n';
-    std::cout << "\tQueue points:    " << space.queue.size() << '\n';
   }
   return space.checked;
 }
@@ -746,31 +550,7 @@ std::vector<std::vector<DataPoint>> executeAATBNoCache(const std::deque<lamb::An
  */
 std::deque<Anomaly> dimExploration (Anomaly &hit, const int iterations, 
     const int span, const int jump, const double ratio) {
-
-  std::deque<Anomaly> anomalies_found;
-
-  mkl_set_num_threads (hit.n_threads);
-  unsigned ticks = int (span / jump) * 2 + 1;
-  std::vector<std::vector<double>> times;
-  Anomaly candidate = hit;
-
-  for (unsigned d = 0; d < hit.dims.size(); d++) {
-    candidate.dims = hit.dims;
-    for (unsigned i = 0; i < ticks; i++) {
-      // candidate.dims[d] = hit.dims[d] - int(span / jump) * jump + i * jump;
-      candidate.dims[d] = hit.dims[d] + (i - int(span / jump)) * jump;
-      if (candidate.dims[d] > 0){
-        for (auto &x : candidate.dims)
-          std::cout << x << ',';
-        std::cout << '\n';
-
-        times = mc4::MC4_execute_par (candidate.dims, candidate.algs, iterations, candidate.n_threads);
-        search_anomaly_pair(candidate, times, ratio);
-        anomalies_found.push_back(candidate);
-      }
-    }
-  }
-  return anomalies_found;
+  // To be implemented for MCX.h and AATB.h
 }
 
 /**
@@ -815,7 +595,7 @@ void addNeighbours (exploratorySpace &space, const Anomaly &a, const int jump, c
  * @param ofile   Output file manager already opened.
  * @param ndim    The number of dimensions in the problem.
  */
-void print_header_anomalies (std::ofstream &ofile, const int ndim) {
+void printHeaderAnomaly (std::ofstream &ofile, const int ndim) {
   for (int i = 0; i < ndim; i++)
     ofile << 'd' << i << ',';
 
@@ -829,7 +609,7 @@ void print_header_anomalies (std::ofstream &ofile, const int ndim) {
  * @param ofile Output file manager already opened.
  * @param an    The anomaly to be printed in the file.
  */
-void print_anomaly (std::ostream &ofile, const Anomaly& an) {
+void printAnomaly (std::ostream &ofile, const Anomaly& an) {
   for (auto &d : an.dims)
     ofile << d << ',';
 
@@ -848,7 +628,7 @@ void print_anomaly (std::ostream &ofile, const Anomaly& an) {
  * @param ofile   Output file manager already opened.
  * @param ndim    The number of dimensions in the problem.
  */
-void print_header_validation (std::ofstream &ofile, const int ndim) {
+void printHeaderVal (std::ofstream &ofile, const int ndim) {
   for (int i = 0; i < ndim; i++)
     ofile << 'd' << i << ',';
 
@@ -863,7 +643,7 @@ void print_header_validation (std::ofstream &ofile, const int ndim) {
  * @param an              The anomaly to be printed in the file.
  * @param old_time_score  The old time score validated.
  */
-void print_validation (std::ofstream &ofile, const Anomaly& an, const float old_time_score) {
+void printVal(std::ofstream &ofile, const Anomaly& an, const float old_time_score) {
   for (auto &d : an.dims)
     ofile << d << ',';
 
@@ -873,58 +653,6 @@ void print_validation (std::ofstream &ofile, const Anomaly& an, const float old_
     ofile << p << ',';
 
   ofile << an.flops_score << ',' << an.time_score << ',' << old_time_score << '\n';
-}
-
-/**
- * Adds the headers to an output file in validation phase. Format:
- * | ndim dims || alg || nsamples samples |
- *
- * @param ofile     The output file manager, which has been previously opened.
- * @param ndim      The number of problem dimensions.
- * @param nsamples  The number of samples that will be computed.
- */
-void print_header_val_time (std::ofstream &ofile, const int ndim, const int nsamples){
-  for (int i = 0; i < ndim; i++)
-    ofile << 'd' << i << ',';
-
-  ofile << "alg" << ',';
-
-  for (int i = 0; i < nsamples; i++){
-    ofile << "Sample_" << i;
-
-    if (i == nsamples - 1)
-      ofile << '\n';
-    else
-      ofile << ',';
-  }
-}
-
-/**
- * Adds a line in the already opened ofile for validation phase. Format:
- * | dims || n_alg || samples |
- *
- * @param ofile     Output file manager which has been previously opened.
- * @param dims      The array with the problem dimensions.
- * @param ndim      The number of dimensions in the problem.
- * @param times     The array that contains the execution times (already computed).
- * @param nsamples  The number of samples to store in the output file.
- * @param alg   Value that indicates which algorithm is stored.
- */
-void print_val_time (std::ofstream &ofile, const int dims[], const int ndim, 
-    const double times[], const int nsamples, const int alg) {
-  for (int i = 0; i < ndim; i++)
-    ofile << dims[i] << ',';
-
-  ofile << alg << ',';
-
-  for (int i = 0; i < nsamples; i++){
-    ofile << std::fixed << std::setprecision(10) << times[i];
-
-    if (i == nsamples - 1)
-      ofile << '\n';
-    else
-      ofile << ',';
-  }
 }
 
 } // namespace lamb
