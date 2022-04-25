@@ -26,7 +26,7 @@ $(OBJ)/%.o: $(MISC)/%.cpp $(MISC)/%.h # $(SRC)/cube/%.cpp $(SRC)/cube/%.h
 $(OBJ)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CFLAGS) $(DEFS) -c $< -o $@
 
-$(BIN)/%.x: $(OBJ)/%.o $(OBJ)/cube_old.o $(OBJ)/common.o $(OBJ)/MC4.o $(OBJ)/anomalies.o $(OBJ)/MCX.o $(OBJ)/exploration.o $(OBJ)/operation.o
+$(BIN)/%.x: $(OBJ)/%.o $(OBJ)/cube_old.o $(OBJ)/common.o $(OBJ)/anomalies.o $(OBJ)/MCX.o $(OBJ)/exploration.o $(OBJ)/operation.o
 	$(LINKER) $^ $(LDFLAGS) -o $@
 
 clean:
