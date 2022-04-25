@@ -61,6 +61,8 @@ Anomaly analysePoint(dVector2D& times, std::vector<unsigned long>& flops, const 
 Anomaly analysePoint(const dVector1D& median_times, std::vector<unsigned long>& flops, 
     const double min_margin);
 
+unsigned getFastestCheap (const dVector1D& median_times, std::vector<unsigned long>& flops);
+
 /**
  * Checks whether there is an anomaly in the computed results.
  *

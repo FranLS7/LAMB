@@ -30,6 +30,7 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
+  std::vector<int> dims (ndim);
   std::vector<double> times (iterations);
   std::ofstream ofile;
 
@@ -38,7 +39,7 @@ int main (int argc, char** argv){
     cout << "Error opening output file" << endl;
     return(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *B;
@@ -49,7 +50,7 @@ int main (int argc, char** argv){
     // for (auto k : points){
       int n = m;
       cout << "Executing with {" << m << "," << n << "}" << endl;
-      int dims[] = {m, n};
+      dims = {m, n};
 
       A = static_cast<double*>(mkl_malloc(m * m * sizeof(double), align));
       for (int i = 0; i < m * m; i++)
@@ -60,9 +61,9 @@ int main (int argc, char** argv){
         B[i] = drand48();
 
       for (int it = 0; it < iterations; it++){
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
         cblas_dtrmm (CblasRowMajor, CblasLeft, CblasUpper, CblasNoTrans, CblasNonUnit,
@@ -71,7 +72,7 @@ int main (int argc, char** argv){
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      add_line (ofile, dims, ndim, &times[0], iterations);
+      lamb::printTime(ofile, dims, times);
 
       mkl_free(A);
       mkl_free(B);

@@ -53,20 +53,35 @@ Anomaly analysePoint(const dVector1D& median_times, std::vector<unsigned long>& 
   aux.flops_score = 0.0;
   aux.time_score = 0.0;
 
-  unsigned id_min_flops = idxMinVector(flops);
-  unsigned id_min_times = idxMinVector(median_times);
-  aux.algs = {static_cast<int>(id_min_flops), static_cast<int>(id_min_flops)};
+  unsigned id_cheapest = getFastestCheap(median_times, flops);
+  unsigned id_fastest = idxMinVector(median_times);
 
-  if (id_min_flops == id_min_times || flops[id_min_flops] == flops[id_min_times]){
+  aux.algs = {static_cast<int>(id_cheapest), static_cast<int>(id_cheapest)};
+
+  if (id_cheapest == id_fastest) {
     aux.isAnomaly = false;
   }
-  else if (median_times[id_min_times] < ((1 - min_margin) * median_times[id_min_flops])) {
+  else if (median_times[id_fastest] < ((1 - min_margin) * median_times[id_cheapest])) {
     aux.isAnomaly = true;
-    aux.algs = {static_cast<int>(id_min_times), static_cast<int>(id_min_flops)};
-    aux.flops_score = score(flops[id_min_flops], flops[id_min_times]);
-    aux.time_score = score(median_times[id_min_flops], median_times[id_min_times]);
+    aux.algs = {static_cast<int>(id_fastest), static_cast<int>(id_cheapest)};
+    aux.flops_score = score(flops[id_cheapest], flops[id_fastest]);
+    aux.time_score = score(median_times[id_cheapest], median_times[id_fastest]);
   }
   return aux;
+}
+
+unsigned getFastestCheap (const dVector1D& median_times, std::vector<unsigned long>& flops) {
+  unsigned long min = flops[0];
+  unsigned id_fast_cheap = 0; // index of the fastest amongst the cheapest
+  for (unsigned i = 0; i < flops.size(); ++i) {
+    if (flops[i] < min) {
+      min = flops[i];
+      id_fast_cheap = i;
+    }
+    else if (flops[i] == min && median_times[i] < median_times[id_fast_cheap])
+      id_fast_cheap = i;
+  }
+  return id_fast_cheap;
 }
 
 /**
@@ -600,10 +615,10 @@ std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iter
   // =====================================================================
 
   while (keepExploring) { // values in one direction
-    std::cout << ">> Computing point: {";
-    for (const auto& d : dims)
-      std::cout << d << ',';
-    std::cout << "}...\n";
+    // std::cout << ">> Computing point: {";
+    // for (const auto& d : dims)
+    //   std::cout << d << ',';
+    // std::cout << "}...\n";
 
     expression.setDims(dims);
     flops = expression.getFLOPs();
@@ -649,13 +664,14 @@ std::vector<std::vector<DataPoint>> arrowAATB(const Anomaly& hit, const int iter
 
     dims[dim_id] -= diff;
     if (dims[dim_id] <= 0 || dims[dim_id] > max_dim) keepExploring = false;
-    std::cout << "\tcount_in:  " << count_in << std::endl;
-    std::cout << "\tcount_out: " << count_out << std::endl;
+    // std::cout << "\tcount_in:  " << count_in << std::endl;
+    // std::cout << "\tcount_out: " << count_out << std::endl;
 
     if (!keepExploring && forward) {
       std::cout << ">> GOING BACKWARDS NOW\n";
       keepExploring = true;
       forward = false;
+      in = true;
       diff *= -1;
       count_in = 0;
       count_out = 0;

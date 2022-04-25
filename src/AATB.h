@@ -309,6 +309,12 @@ namespace aatb
      * @param matrices Vector with matrices of which the memory is freed.
      */
     void freeInter();
+
+    /**
+     * @brief Copies the upper triangle in M into the lower triangle (only for algorithm 1).
+     * 
+     */
+    void copyHalfInterm();
   };
 
 } // end namespace aatb

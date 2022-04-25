@@ -4,16 +4,15 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include <mkl.h>
 
 #include "common.h"
+#include <mkl.h>
 #include <omp.h>
 
 using namespace std;
 
 int main (int argc, char** argv){
   int ndim = 3;
-  double one = 1.0;
   int align = 64;
   std::vector<int> points = {20, 40, 60, 80, 100, 150, 200, 250, 300, 400, 500,
     600, 700, 800, 900, 1000, 1200, 1500, 2000, 2500, 3000};
@@ -30,6 +29,8 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
+  std::vector<int> dims (ndim);
+  unsigned long flops = 0;
   std::vector<double> times (iterations);
   std::ofstream ofile;
 
@@ -38,7 +39,7 @@ int main (int argc, char** argv){
     std::cout << "Error opening output file" << endl;
     return(-1);
   }
-  lamb::printHeaderTime(ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations, true);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *B, *C;
@@ -51,7 +52,9 @@ int main (int argc, char** argv){
       int k = m;
       int n = m;
       std::cout << "Executing with {" << m << "," << k << "," << n << "}" << endl;
-      int dims[] = {m, k, n};
+      dims = {m, k, n};
+      flops = static_cast<unsigned long>(2 * m) * static_cast<unsigned long>(k) * 
+              static_cast<unsigned long>(n);
 
       A = static_cast<double*>(mkl_malloc(m * k * sizeof(double), align));
       for (int i = 0; i < m * k; i++)
@@ -71,13 +74,13 @@ int main (int argc, char** argv){
         lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
-        cblas_dgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, one, A,
-                      k, B, n, one, C, n);
+        cblas_dgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, 1.0, A,
+                      k, B, n, 0.0, C, n);
         auto time2 = std::chrono::high_resolution_clock::now();
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      add_line (ofile, dims, ndim, &times[0], iterations);
+      lamb::printTime(ofile, dims, times, flops);
 
       mkl_free(A);
       mkl_free(B);

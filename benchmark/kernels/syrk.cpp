@@ -30,6 +30,8 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
+  std::vector<int> dims (ndim);
+  unsigned long flops = 0;
   std::vector<double> times (iterations);
   std::ofstream ofile;
 
@@ -38,7 +40,7 @@ int main (int argc, char** argv){
     cout << "Error opening output file" << endl;
     return(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations, true);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *C;
@@ -49,31 +51,31 @@ int main (int argc, char** argv){
     // for (auto k : points){
       int k = n;
       cout << "Executing with {" << n << "," << k << "}" << endl;
-      int dims[] = {n, k};
+      dims = {n, k};
+      flops = static_cast<unsigned long>(n + 1) * static_cast<unsigned long>(n) * 
+              static_cast<unsigned long>(k);
 
       A = static_cast<double*>(mkl_malloc(n * k * sizeof(double), align));
-
       for (int i = 0; i < n * k; i++)
         A[i] = drand48();
 
       C = static_cast<double*> (mkl_malloc(n * n * sizeof(double), align));
-
       for (int i = 0; i < n * n; i++)
         C[i] = drand48();
 
       for (int it = 0; it < iterations; it++){
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
-        cache_flush_par (nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
-        cblas_dsyrk (CblasRowMajor, CblasUpper, CblasNoTrans, n, k, one, A, k,
-                     one, C, n);
+        cblas_dsyrk (CblasRowMajor, CblasUpper, CblasNoTrans, n, k, 1.0, A, n,
+                     0.0, C, n);
         auto time2 = std::chrono::high_resolution_clock::now();
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      add_line (ofile, dims, ndim, &times[0], iterations);
+      lamb::printTime(ofile, dims, times, flops);
 
       mkl_free(A);
       mkl_free(C);
@@ -85,7 +87,6 @@ int main (int argc, char** argv){
        << " seconds" << endl;
 
   ofile.close();
-
 
   return 0;
 }

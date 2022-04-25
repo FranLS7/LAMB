@@ -43,7 +43,9 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
-  double* times = static_cast<double*> (malloc(iterations * sizeof(double)));
+  std::vector<int> dims (ndim);
+  unsigned long flops = 0;
+  std::vector<double> times (iterations);
   std::ofstream ofile;
 
   ofile.open (output_file + string(".csv"));
@@ -51,7 +53,7 @@ int main (int argc, char** argv){
     cout << "Error opening output file" << endl;
     return(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations, true);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *B, *C;
@@ -60,36 +62,36 @@ int main (int argc, char** argv){
 
   for (auto m : points){
     // for (auto n : points){
+      int n = m;
       cout << "Executing with {" << m << "," << m << "}" << endl;
-      int dims[] = {m, m};
+      dims = {m, n};
+      flops = static_cast<unsigned long>(2 * m) * static_cast<unsigned long>(m) * 
+              static_cast<unsigned long>(n);
 
-      A = static_cast<double*> (mkl_malloc(dims[0] * dims[0] * sizeof(double), align));
-
-      for (int i = 0; i < dims[0] * dims[0]; i++)
+      A = static_cast<double*>(mkl_malloc(m * m * sizeof(double), align));
+      for (int i = 0; i < m * m; i++)
         A[i] = drand48();
 
-      B = static_cast<double*> (mkl_malloc(dims[0] * dims[1] * sizeof(double), align));
-
-      for (int i = 0; i < dims[0] * dims[1]; i++)
+      B = static_cast<double*>(mkl_malloc(m * n * sizeof(double), align));
+      for (int i = 0; i < m * n; i++)
         B[i] = drand48();
 
-      C = static_cast<double*> (mkl_malloc(dims[0] * dims[1] * sizeof(double), align));
-
-      for (int i = 0; i < dims[0] * dims[1]; i++)
+      C = static_cast<double*>(mkl_malloc(m * n * sizeof(double), align));
+      for (int i = 0; i < m * n; i++)
         C[i] = drand48();
 
       for (int it = 0; it < iterations; it++){
-        cache_flush_par(nthreads);
-        cache_flush_par(nthreads);
-        cache_flush_par(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
+        lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
-        cblas_dsymm (CblasRowMajor, CblasLeft, CblasUpper, dims[0], dims[1], one, A, dims[0], B, dims[1], one, C, dims[1]);
+        cblas_dsymm (CblasRowMajor, CblasLeft, CblasUpper, m, n, 1.0, A, m, B, m, 0.0, C, m);
         auto time2 = std::chrono::high_resolution_clock::now();
 
         times[it] = std::chrono::duration<double> (time2 - time1).count();
       }
-      add_line (ofile, dims, ndim, times, iterations);
+      lamb::printTime(ofile, dims, times, flops);
 
       mkl_free(A);
       mkl_free(B);
@@ -101,7 +103,6 @@ int main (int argc, char** argv){
   cout << "Execution time: " << std::chrono::duration<double>(end - start).count() << " seconds" << endl;
 
   ofile.close();
-  free(times);
 
   return 0;
 }

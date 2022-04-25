@@ -102,7 +102,7 @@ int main(int argc, char **argv)
           std::cerr << "Error opening the output file " << i << std::endl;
           exit(-1);
         }
-        lamb::printHeaderTime(ofile_algs, ndim, 1, ndim - 2, true);
+        lamb::printHeaderTime(ofile_algs, ndim, 1, ndim - 1, true);
 
         for (const auto &point : results[i])
         {

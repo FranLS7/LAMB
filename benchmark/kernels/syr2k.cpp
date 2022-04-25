@@ -30,6 +30,8 @@ int main (int argc, char** argv){
     output_file = argv[3];
   }
 
+  std::vector<int> dims (ndim);
+  unsigned long flops = 0;
   std::vector<double> times (iterations);
   std::ofstream ofile;
 
@@ -38,7 +40,7 @@ int main (int argc, char** argv){
     cout << "Error opening output file" << endl;
     return(-1);
   }
-  add_headers (ofile, ndim, iterations);
+  lamb::printHeaderTime(ofile, ndim, iterations, true);
 
   auto start = std::chrono::high_resolution_clock::now();
   double *A, *B, *C;
@@ -49,7 +51,9 @@ int main (int argc, char** argv){
     // for (auto k : points){
       int k = n;
       cout << "Executing with {" << n << "," << k << "}" << endl;
-      int dims[] = {n, k};
+      dims = {n, k};
+      flops = static_cast<unsigned long>(n + 1) * static_cast<unsigned long>(n) * 
+              static_cast<unsigned long>(k); // wrong expression for flops
 
       A = static_cast<double*>(mkl_malloc(n * k * sizeof(double), align));
       for (int i = 0; i < n * k; i++)
@@ -69,13 +73,13 @@ int main (int argc, char** argv){
         lamb::cacheFlush(nthreads);
 
         auto time1 = std::chrono::high_resolution_clock::now();
-        cblas_dsyr2k (CblasRowMajor, CblasUpper, CblasNoTrans, n, k, one, A, k,
-                      B, k, one, C, n);
+        cblas_dsyr2k (CblasRowMajor, CblasUpper, CblasNoTrans, n, k, 1.0, A, k,
+                      B, k, 0.0, C, n);
         auto time2 = std::chrono::high_resolution_clock::now();
 
         times[it] = std::chrono::duration<double>(time2 - time1).count();
       }
-      lamb::printTime(ofile, dims, ndim, &times[0], iterations);
+      lamb::printTime(ofile, dims, times, flops);
 
       mkl_free(A);
       mkl_free(B);

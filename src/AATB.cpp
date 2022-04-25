@@ -271,6 +271,8 @@ namespace aatb
       cblas_dsyrk(CblasColMajor, CblasUpper, CblasNoTrans, A.rows, A.columns, 1.0,
                   A.data, A.rows, 0.0, M.data, M.rows);
 
+      copyHalfInterm();
+
       cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M.rows, B.columns, M.columns,
                   1.0, M.data, M.rows, B.data, B.rows, 0.0, X.data, X.rows);
       auto end = std::chrono::high_resolution_clock::now();
@@ -417,15 +419,18 @@ namespace aatb
       auto begin = std::chrono::high_resolution_clock::now();
       cblas_dsyrk(CblasColMajor, CblasUpper, CblasNoTrans, A.rows, A.columns, 1.0,
                   A.data, A.rows, 0.0, M.data, M.rows);
+      auto mid_precopy = std::chrono::high_resolution_clock::now();
 
-      auto mid = std::chrono::high_resolution_clock::now();
+      copyHalfInterm();
+
+      auto mid_postcopy = std::chrono::high_resolution_clock::now();
       cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M.rows, B.columns, M.columns,
                   1.0, M.data, M.rows, B.data, B.rows, 0.0, X.data, X.rows);
 
       auto end = std::chrono::high_resolution_clock::now();
 
-      times[0][it] = std::chrono::duration<double>(mid - begin).count();
-      times[1][it] = std::chrono::duration<double>(end - mid).count();
+      times[0][it] = std::chrono::duration<double>(mid_precopy - begin).count();
+      times[1][it] = std::chrono::duration<double>(end - mid_postcopy).count();
       times.back()[it] = std::chrono::duration<double>(end - begin).count();
     }
 
@@ -597,6 +602,7 @@ namespace aatb
       auto t1 = std::chrono::high_resolution_clock::now();
       times[0][it] = std::chrono::duration<double>(t1 - t0).count();
     }
+    copyHalfInterm();
 
     for (int it = 0; it < iterations; ++it)
     {
@@ -851,7 +857,8 @@ namespace aatb
    * This function is only used when the original set of dimensions is replaced by a new
    * set of dimensions.
    */
-  void AATB::resizeInput() {
+  void AATB::resizeInput()
+  {
     A.rows = dims[0];
     A.columns = dims[1];
 
@@ -958,6 +965,17 @@ namespace aatb
   void AATB::freeInter()
   {
     mkl_free(M.data);
+  }
+
+  void AATB::copyHalfInterm()
+  {
+    for (unsigned j = 0; j < M.columns; ++j)
+    {
+      for (unsigned i = j + 1; i < M.rows; ++i)
+      {
+        M.data[j * M.rows + i] = M.data[i * M.rows + j];
+      }
+    }
   }
 
 } // end namespace aatb
